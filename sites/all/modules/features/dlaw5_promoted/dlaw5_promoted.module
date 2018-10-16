@@ -1,0 +1,173 @@
+<?php
+/**
+ * @file
+ * Drupal needs this blank file.
+ */
+
+define('DLAW5_PROMOTED_THRESHOLD', 10); // in percent
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function dlaw5_promoted_form_node_form_alter(&$form, $form_state, $form_id) {
+  // Only include on node add/edit forms.
+  if (!empty($form['#node_edit_form'])) {
+    // JS to update vertical tab status, 'Yes' or 'No'.
+    drupal_add_js(drupal_get_path('module', 'dlaw5_promoted') . "/js/vt-summary-promoted.js");
+
+    // This module uses node's "Promoted to front page" flag, which is not used.
+    // Copy form element from 'Options' to create 'Promotion'; the former is not
+    // accessible to regular users.
+    // Disable the checkbox if more than 10% of contents are already promoted,
+    // except it lets you uncheck to unpromote regardless.
+    $form['promotion'] = $form['options'];
+    $form['promotion']['#title'] = 'Search promotion';
+    $form['promotion']['#attributes']['class'][0] = 'node-form-promoted';
+    $form['promotion']['#weight'] = 10;
+
+    $threshold = dlaw5_promoted_count_over_threshold();
+
+    $form['promotion']['promoted'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Promote in search'),
+      '#default_value' => $form['promotion']['promote']['#default_value'],
+
+      '#description' => 'Promote content to appear higher up in the search results.<br>'
+        . "$threshold[promoted] of $threshold[total] ($threshold[ratio]%) pages promoted. "
+        . DLAW5_PROMOTED_THRESHOLD . "% of published pages can be promoted.",
+
+      '#disabled' => empty($form['promotion']['promote']['#default_value']) && $threshold['ratio'] >= DLAW5_PROMOTED_THRESHOLD ? TRUE : FALSE,
+    );
+
+    unset($form['promotion']['status'], $form['promotion']['promote'], $form['promotion']['sticky']);
+
+    $form['#validate'][] = 'dlaw5_promoted_form_note_form_validate';
+  }
+}
+
+/**
+ * Custom validator for dlaw5_promoted_form_node_form_alter().
+ * Assign user provided value in 'promoted' to core's 'promote'.
+ */
+function dlaw5_promoted_form_note_form_validate(&$form, &$form_state) {
+  $form_state['values']['promote'] = $form_state['values']['promoted'];
+}
+
+/**
+ * Helper to return promoted page count and percentage.
+ * 
+ * @return array
+ */
+function dlaw5_promoted_count_over_threshold() {
+  $count = db_query(
+   "SELECT
+      COUNT(nid) as total,
+      COUNT(CASE WHEN promote = 1 THEN 1 END) AS promoted
+    FROM node WHERE type = 'page' AND status <> 0")
+    ->fetchObject();
+
+  return array(
+    'total'    => $count->total,
+    'promoted' => $count->promoted,
+    'ratio' => round($count->promoted / $count->total * 100, 1),
+  );
+}
+
+/**
+ * Implements hook_preprocess_search_result().
+ */
+function dlaw5_promoted_preprocess_search_result(&$vars) {
+  if ($vars['result']['node']->entity_type == 'node' and $vars['result']['node']->bundle == 'page') {
+    if ($node = node_load($vars['result']['node']->entity_id)) {
+      // Check prompted content.
+      if ($node->promote) {
+        $vars['title'] = '<i class="fa fa-star" style="" title="Promoted content"></i> ' . $vars['title'];
+      }
+
+      // Check body text for embedded media (oembed) and file attachments.
+      $icons = array();
+      if (!empty($node->body['und'][0]['value'])) {
+        $match = dlaw5_promoted_detect_oembed($node->body['und'][0]['value']);
+      }
+
+      if (!empty($match['guideclearly'])) {
+        $icons[] = '<i class="fa fa-compass" style="" title="Includes GuideClearly"></i>';
+      }
+
+      if (!empty($match['video'])) {
+        $icons[] = '<i class="fa fa-video-camera" style="" title="Includes Video"></i>';
+      }
+
+      if (!empty($match['googledoc'])) {
+        $icons[] = '<i class="fa fa-file-word-o" aria-hidden="true" title="Includes DOC"></i>';
+      }
+
+      if (!empty($node->field_attachments)) {
+        $icons[] = '<i class="fa fa-file-pdf-o" aria-hidden="true" title="Includes PDF"></i>';
+      }
+
+      if (!empty($node->field_links)) {
+        $icons[] = '<i class="fa fa-link" aria-hidden="true" title="Has external links"></i>';
+      }
+    }
+
+    if (!empty($icons)) {
+      // title_suffix is an array of render array.
+      $vars['title_suffix'][] = array(
+        '#markup' => join(' &nbsp;', $icons),
+        '#prefix' => '<div class="embedded-media-icons">',
+        '#suffix' => '</div>',
+      );
+    }
+  }
+  elseif ($vars['result']['node']->entity_type == 'file') {
+    // dsm($vars);
+    // Place linebreak before file icon in the search snippet.
+
+    $vars['snippet'] = preg_replace_callback(
+      '#(<span><img class="file-icon".* )application/(\w+) #',
+      function($matches) {
+        return ' ...<br>' . $matches[1] . strtoupper($matches[2]) . ' ';
+    }, $vars['snippet']);
+
+    $vars['snippet'] = preg_replace_callback('<<img class="file-icon" alt="" title="application/pdf" src="/modules/file/icons/application-pdf.png" />>',
+      function($matches) {
+        return '<i class="fa fa-file-pdf-o" aria-hidden="true" title="PDF"></i>' . ' ';
+    }, $vars['snippet']);
+
+
+
+  }
+}
+
+/**
+ * Detect oembed URLs by known providers in the node's body text.
+ * Not depends on soembed module, but borrows regex logic from it.
+ * 
+ * @return array
+ */
+function dlaw5_promoted_detect_oembed($text) {
+  $providers = array(
+    'www.guideclearly.com/guide/.*'             => 'guideclearly',
+    '(www\.)?youtube.com/watch.*'               => 'video',
+    'youtu\.be/.*'                              => 'video',
+    '(www\.)?vimeo\.com/.*'                     => 'video',
+    'docs.google.com/(document|spreadsheet)/.*' => 'googledoc',
+  );
+
+  $match = array(
+    'guideclearly' => FALSE,
+    'video'        => FALSE,
+    'googledoc'    => FALSE,
+  );
+
+  foreach ($providers as $provider => $type) {
+    if (!$match[$type]) {
+      if (preg_match('#^(<p>|<p +class="\w+">)?https?://' . $provider . '(</p>)?$#im', $text)) {
+        $match[$type] = TRUE;
+      }
+    }
+  }
+
+  return $match;
+}

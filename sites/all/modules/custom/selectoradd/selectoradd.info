@@ -1,0 +1,5 @@
+name = Select or Add
+description = Adds ability to add a new taxonomy term on node add/edit form.
+core = 7.x
+package = DLAW
+version = "7.x-0.1"

@@ -1,0 +1,121 @@
+<?php
+
+/**
+ * @file
+ * Restrict SSL on login; non-SSL otherwise.
+ */
+
+
+/**
+ * Implements hook_menu().
+ */
+function seclogin_menu() {
+  $items['user/seclogin/%/%/%'] = array(
+    'title' => 'Secure login',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('seclogin_user_pass_reset', 2, 3, 4),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['admin/config/people/seclogin'] = array(
+    'title' => 'DLAW Secure Login',
+    'description' => 'Configure secure login.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('seclogin_admin_page'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'seclogin.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_menu_alter().
+ */
+function seclogin_menu_alter(&$items) {
+  $items['user']['page callback'] = 'seclogin_user_page';
+}
+
+/**
+ * Menu callback for path 'user/seclogin'
+ * Copied from user_pass_reset();
+ * Revised to remove message on password reset.
+ */
+function seclogin_user_pass_reset($form, &$form_state, $uid, $timestamp, $hashed_pass, $action = NULL) {
+  global $user;
+
+  if (!user_is_anonymous()) {
+    $user = drupal_anonymous_user();
+  }
+
+  $timeout = variable_get('user_password_reset_timeout', 86400);
+  $current = REQUEST_TIME;
+  $users   = user_load_multiple(array($uid), array('status' => '1'));
+  if ($timestamp <= $current && $account = reset($users)) {
+    if ($account->uid && $timestamp >= $account->login && $timestamp <= $current && $hashed_pass == user_pass_rehash($account->pass, $timestamp, $account->login)) {
+
+      $user = $account;
+      user_login_finalize();
+      if (user_access('access dlaw dashboard')) {
+        drupal_goto('admin/dashboard');
+      }
+      else {
+        drupal_goto('');
+      }
+    }
+  }
+}
+
+/**
+ * Altered menu callback for path 'user'
+ * Based on user_page().
+ */
+function seclogin_user_page() {
+  global $user, $is_https;
+
+  if (seclogin_module_active() and !$is_https) {
+    if ($user->uid) {
+      menu_set_active_item('user/' . $user->uid);
+      return menu_execute_active_handler(NULL, FALSE);
+    }
+    else {
+      if ($ssl_domain = variable_get('seclogin_ssl_domain', '')) {
+        drupal_goto("https://$ssl_domain/user");
+      }
+    }
+  }
+
+  return user_page();
+}
+
+/**
+ * Implements hook_user_login().
+ */
+function seclogin_user_login(&$edit, $account) {
+  global $user, $is_https;
+
+  if (seclogin_module_active() and $is_https and strpos($_SERVER['HTTP_HOST'], '.openadvocate.')) {
+    $user = drupal_anonymous_user();
+
+    if ($url = seclogin_user_pass_reset_url($account)) {
+      drupal_goto($url);
+    }
+  }
+}
+
+/**
+ * Copied from user_pass_reset_url().
+ * Unlike the original, it uses canonical domain; (abc.org instead of abc.openadvocate.org).
+ */
+function seclogin_user_pass_reset_url($account) {
+  $timestamp = REQUEST_TIME;
+  if ($reg_domain = variable_get('seclogin_regular_domain', '')) {
+    return url("http://$reg_domain/user/seclogin/$account->uid/$timestamp/" . user_pass_rehash($account->pass, $timestamp, $account->login));
+  }
+}
+
+function seclogin_module_active() {
+  return variable_get('seclogin_active', 0);
+}
+

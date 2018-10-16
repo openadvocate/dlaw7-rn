@@ -1,0 +1,7 @@
+{
+"version": 3,
+"mappings": "AAGE,4DAA6B;EACzB,OAAO,EAAE,QAAQ;;AAKrB,sFAAwE;EACtE,YAAY,EAAE,KAAK;;AAKvB,OAAO;EACL,aAAa,EAAE,CAAC;EAChB,YAAY,EAAE,CAAC;EACf,wBAAgB;IACd,aAAa,EAAE,CAAC;IAChB,YAAY,EAAE,CAAC;;AAMf,iCAAK;EACH,YAAY,EAAE,KAAK;;AAOvB,sDAAU;EACR,WAAW,EAAE,iBAAoB;EACjC,KAAK,EApCG,OAAO;;AAwCjB,sBAAO;EACL,KAAK,EAAE,kBAAqB;;AAIhC,SAAS;EACP,KAAK,EAAE,OAAuB",
+"sources": ["../sass/readable-override.scss"],
+"names": [],
+"file": "readable-override.css"
+}

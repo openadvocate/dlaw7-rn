@@ -1,0 +1,17 @@
+diff --git a/sites/all/modules/contrib/apachesolr_panels/apachesolr_panels.module b/sites/all/modules/contrib/apachesolr_panels/apachesolr_panels.module
+index ae11c15..840b330 100644
+--- a/sites/all/modules/contrib/apachesolr_panels/apachesolr_panels.module
++++ b/sites/all/modules/contrib/apachesolr_panels/apachesolr_panels.module
+@@ -111,6 +111,13 @@ function apachesolr_panels_search_execute($search) {
+   apachesolr_panels_static_search_cache($search);
+
+   $results = NULL;
++
++  // Support multiple filters separated by 'AND'.
++  if ($filters = trim($search['filters']) and strpos($filters, ' AND ')) {
++    $search['filters'] = explode(' AND ', $filters);
++  }
++
+   try {
+     $solr = apachesolr_get_solr($search['env_id']);
+     $results = apachesolr_search_run('apachesolr', array_filter(array('q' => $search['keys'], 'fq' => $search['filters'], 'rows' => $search['rows'])), $search['sort'], $search['path'], $search['page'], $solr);

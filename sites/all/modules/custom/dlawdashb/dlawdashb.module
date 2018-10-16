@@ -1,0 +1,739 @@
+<?php
+
+/**
+ * @file
+ * Dashboard for DLAW.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function dlawdashb_menu() {
+  $items['admin/dashboard/default'] = array(
+    'title' => 'Dashboard',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
+
+  $items['admin/dashboard/settings/categories'] = array(
+    'title' => 'Categories',
+    'description' => 'DLAW Dashboard - Categories',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('taxonomy_overview_vocabularies'),
+    'access arguments' => array('administer taxonomy'),
+    'weight' => 2,
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'taxonomy.admin.inc',
+    'file path' => drupal_get_path('module', 'taxonomy'),
+  );
+
+  $items['admin/dashboard/users'] = array(
+    'title' => 'Users',
+    'description' => 'DLAW Dashboard - User Management)',
+    'page callback' => 'dlawdashb_user_admin',
+    'access arguments' => array('administer users'),
+    'weight' => 14,
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function dlawdashb_permission() {
+  return array(
+    'access dlaw dashboard' => array(
+      'title' => t('Access DLAW Dashboard'),
+      'description' => t(''),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu_alter().
+ * @see path 'admin/dashboard/categories'
+ */
+function dlawdashb_menu_alter(&$items) {
+  // Do not allow site admins to edit vocabulary (and edit/display fields).
+  $items['admin/structure/taxonomy/%taxonomy_vocabulary_machine_name/edit']['access arguments'] = array('bypass node access');
+  // As new function field_ui_admin_access() was introduced in Drupal 7.50, index [1] is needed to avoid errors;
+  $items['admin/structure/taxonomy/%taxonomy_vocabulary_machine_name/fields']['access arguments'][1] = array('bypass node access');
+  $items['admin/structure/taxonomy/%taxonomy_vocabulary_machine_name/display']['access arguments'][1] = array('bypass node access');
+
+  // Do not allow site admins at block admin page.
+  $items['admin/structure/block']['access arguments'] = array('bypass node access');
+
+  $items['admin/dashboard']['title'] = 'Manage: ' . variable_get('site_name', '');
+
+  // Allow site admin access.
+  $items['admin/config/services/twitter/settings']['access arguments'] = array('administer twitter accounts');
+}
+
+/**
+ * Implements hook_registry_alter().
+ * @see path 'admin/dashboard/categories'
+ */
+function dlawdashb_theme_registry_alter(&$theme_registry) {
+  $theme_registry['taxonomy_overview_vocabularies']['function'] = 'dlawdashb_taxonomy_overview_vocabularies';
+}
+
+/**
+ * Overriding theme function theme_taxonomy_overview_vocabularies().
+ * Hide 'Edit' column if user does not have permission 'bypass node access'.
+ * @see path 'admin/dashboard/categories'
+ */
+function dlawdashb_taxonomy_overview_vocabularies($variables) {
+  $show_edit_column = user_access('bypass node access') ? TRUE : FALSE;
+
+  $form = $variables['form'];
+
+  $rows = array();
+
+  foreach (element_children($form) as $key) {
+    if (isset($form[$key]['name'])) {
+      $vocabulary = &$form[$key];
+
+      $row = array();
+      $row[] = drupal_render($vocabulary['name']);
+      if (isset($vocabulary['weight'])) {
+        $vocabulary['weight']['#attributes']['class'] = array('vocabulary-weight');
+        $row[] = drupal_render($vocabulary['weight']);
+      }
+
+      if ($show_edit_column) {
+        $row[] = drupal_render($vocabulary['edit']);
+      }
+      else {
+        hide($vocabulary['edit']);
+      }
+
+      $row[] = drupal_render($vocabulary['list']);
+      $row[] = drupal_render($vocabulary['add']);
+      $rows[] = array('data' => $row, 'class' => array('draggable'));
+    }
+  }
+
+  $header = array(t('Vocabulary name'));
+  if (isset($form['actions'])) {
+    $header[] = t('Weight');
+    drupal_add_tabledrag('taxonomy', 'order', 'sibling', 'vocabulary-weight');
+  }
+
+  $colspan = $show_edit_column ? '3' : '2';
+  $header[] = array('data' => t('Operations'), 'colspan' => $colspan);
+  return theme('table', array('header' => $header, 'rows' => $rows, 'empty' => t('No vocabularies available. <a href="@link">Add vocabulary</a>.', array('@link' => url('admin/structure/taxonomy/add'))), 'attributes' => array('id' => 'taxonomy'))) . drupal_render_children($form);
+}
+
+/**
+ * Menu callback for admin/dashboard/users.
+ */
+function dlawdashb_user_admin() {
+  module_load_include('inc', 'user', 'user.admin');
+
+  $build['user_filter_form']   = drupal_get_form('user_filter_form');
+  $build['user_admin_account'] = drupal_get_form('user_admin_account');
+
+  // Remove some unnecessary actions (Cancel does not seem to work any way).
+  if (!user_access('administer permissions')) {
+    unset($build['user_admin_account']['options']['operation']['#options']['cancel']);
+    unset($build['user_admin_account']['options']['operation']['#options']['pathauto_update_alias']);
+  }
+
+  $build['add_user_link']      = array(
+    '#markup' => l('Add a New User', 'admin/people/create', array(
+                   'query' => drupal_get_destination(),
+                   'attributes' => array('class' => array('action-item-primary')))),
+  );
+
+  return $build;
+}
+
+/**
+ *  Implements hook_block_info().
+ */
+function dlawdashb_block_info() {
+  $blocks['add-content'] = array(
+    'info' => t('Manage content'),
+  );
+
+  $blocks['unconnected-pages'] = array(
+    'info' => t('Unconnected Pages'),
+  );
+
+  $blocks['site-summary'] = array(
+    'info' => t('Site Summary'),
+  );
+
+  $blocks['dlawdashb_website_summary'] = array(
+    'info' => t('Dashboard: Site Summary'),
+  );
+
+  return $blocks;
+}
+
+/**
+ *  Implements hook_block_view().
+ */
+function dlawdashb_block_view($delta = '') {
+  // Use if dedicated function exists.
+  $function = $delta . '_block';
+  if (function_exists($function)) {
+    return $function();
+  }
+
+  $block = array();
+
+  if ($delta == 'add-content') {
+    // Hide empty views blocks on dashboard.
+    $js = <<<EOD
+(function ($) {
+  $(function() {
+    $('.block-views:has(.dashboard-block-empty)').hide();
+  });
+})(jQuery);
+EOD;
+
+    drupal_add_js($js, array('type' => 'inline'));
+
+    $add_page = l(
+      '<i class="fa fa-file-text"></i> Add Page',
+      "node/add/page",
+      array('
+        query' => drupal_get_destination(),
+        'attributes' => array('class' => array('btn', 'btn-primary', 'btn-lg', 'add_page')),
+        'html' => TRUE,
+      )
+    );
+
+    $add_contact = '';
+    // $add_contact = l(
+    //   '<i class="fa fa-user"></i> Add Organization',
+    //   "node/add/partner",
+    //   array('query' => drupal_get_destination(),
+    //     'attributes' => array('class' => array('btn', 'btn-success', 'btn-lg', 'add_contact')),
+    //     'html' => TRUE,
+    //   )
+    // );
+
+    $block['content'] = '<div class="">'
+    . $add_page . $add_contact .
+    '</div>';
+    $block['subject'] = 'Add Content';
+
+  }
+  elseif ($delta == 'unconnected-pages') {
+    // Logic:
+    // - Not a section parent or child
+    // - Not event
+    // - Not news
+    // - Not in Topics
+    // - Not in slideshow
+    $nids = array();
+    $slides = variable_get('carousel_slides', array());
+    foreach ($slides as $slide) {
+      $nids[] = $slide['nid'];
+    }
+
+    // In case $nids is empty, add a fake nid (0) to avoid SQL error.
+    if (empty($nids)) {
+      $nids[] = 0;
+    }
+
+    $result = db_query(
+     "SELECT n.nid, n.title, n.changed
+      FROM node n
+      WHERE n.status = 1 AND n.type = 'page'
+        AND n.nid NOT IN (
+          SELECT entity_id FROM field_data_field_section
+        )
+        AND n.nid NOT IN (
+          SELECT field_section_target_id FROM field_data_field_section
+        )
+        AND n.nid NOT IN (
+          SELECT entity_id FROM field_data_field_date
+        )
+        AND n.nid NOT IN (
+          SELECT entity_id FROM field_data_field_news
+        )
+        AND n.nid NOT IN (
+          SELECT entity_id FROM field_data_field_category
+        )
+        AND n.nid NOT IN (:nids)
+      ORDER BY n.changed DESC
+      LIMIT 10", array(':nids' => $nids));
+
+    $rows = array();
+    foreach ($result as $row) {
+      $rows[] = array(l($row->title, "node/$row->nid"), date('m/d/Y - h:ia', $row->changed));
+    }
+
+    $table['rows'] = $rows;
+    $table['header'] = array('Title', 'Updated');
+
+    $block['content'] = theme('table', $table);
+    $block['subject'] = 'Unconnected Pages';
+  }
+  elseif ($delta == 'site-summary') {
+    $list = dlawdashb_site_summary();
+
+    $attributes = array('class' => array('db_ga_site_summary', 'clearfix'));
+    $block['content'] = theme('item_list', array('items' => $list, 'attributes' => $attributes ));
+    $block['subject'] = '<i class="fa fa-tasks"></i> Site Summary (' . variable_get('site_name') . ')';
+  }
+
+  return $block;
+}
+
+function dlawdashb_website_summary_block() {
+  $changed = db_query("SELECT MAX(changed) FROM node WHERE status = 1 AND type = 'page'")
+    ->fetchField();
+  $value = round((REQUEST_TIME - $changed)/86400);
+  if ($value > 90) {
+    $value = '<span class="text-danger">' . number_format($value) . '</span>';
+  }
+  elseif ($value < 30) {
+    $value = '<span class="text-success">' . number_format($value) . '</span>';
+  }
+  $data[] = array($value, 'Days since last update');
+
+  $value = db_query("SELECT COUNT(*) FROM node WHERE type = 'page' AND status = 1")->fetchField();
+  $data[] = array($value, l('Total Published Pages', 'admin/dashboard/content',
+              array('query' => array('status' => '1'))));
+
+  $value = db_query("SELECT COUNT(*) FROM node WHERE type = 'page' AND status = 0")->fetchField();
+  $data[] = array($value, l('Drafts', 'admin/dashboard/content',
+              array('query' => array('status' => '0'))));
+
+  $value = db_query("SELECT COUNT(*) FROM node WHERE type = 'page' AND promote = 1")->fetchField();
+  $data[] = array($value, l('Promoted Pages', 'admin/dashboard/content',
+              array('query' => array('promote' => '1'))));
+
+  $value = db_query("SELECT COUNT(*) FROM node WHERE type = 'page' AND status = 1 AND FROM_UNIXTIME(changed) < TIMESTAMPADD(YEAR, -1, NOW())")->fetchField();
+  $data[] = array($value, l('Pages more than 1 year old', 'admin/dashboard/content',
+              array('query' => array('status' => '1', 'order' => 'changed', 'sort' => 'asc'))));
+
+  $data[] = '--';
+
+  $value = db_query("SELECT COUNT(*) FROM field_data_field_news WHERE field_news_value = 1")->fetchField();
+  $data[] = array($value, 'News');
+
+  $value = db_query("SELECT COUNT(*) FROM field_data_field_date WHERE delta = 0")->fetchField();
+  $data[] = array($value, 'Events');
+
+  $value = db_query("SELECT COUNT(DISTINCT entity_id) FROM field_data_field_section")->fetchField();
+  $data[] = array($value, 'Sections');
+
+  $value = db_query("SELECT COUNT(*) FROM comment WHERE FROM_UNIXTIME(created) > TIMESTAMPADD(DAY, -30, NOW())")->fetchField();
+  $data[] = array($value, 'Comments in last 30 days');
+
+  $data[] = '--';
+
+  $value = db_query("SELECT COUNT(*) FROM node WHERE type = 'contact'")->fetchField();
+  $data[] = array($value, l('Contacts', 'admin/dashboard/content',
+              array('query' => array('type' => 'contact'))));
+
+  $data[] = '--';
+
+  $sql = "SELECT COUNT(td.tid) FROM taxonomy_term_data td JOIN taxonomy_vocabulary vo ON td.vid = vo.vid WHERE vo.machine_name = :name";
+
+  $value = db_query($sql, array(':name' => 'category'))->fetchField();
+  $data[] = array($value, l('Topics', 'admin/structure/taxonomy/category'));
+
+  $value = db_query($sql, array(':name' => 'tags'))->fetchField();
+  $data[] = array($value, l('Tags', 'admin/structure/taxonomy/tags'));
+
+  $value = db_query($sql, array(':name' => 'region'))->fetchField();
+  $data[] = array($value, l('Regions', 'admin/structure/taxonomy/region'));
+
+  $value = db_query($sql, array(':name' => 'zipcode'))->fetchField();
+  $data[] = array($value, l('ZIP Codes', 'admin/structure/taxonomy/zipcode'));
+
+  $value = db_query($sql, array(':name' => 'language'))->fetchField();
+  $data[] = array($value, l('Languages', 'admin/structure/taxonomy/language'));
+
+  $data[] = '--';
+
+  $sql = "SELECT COUNT(u.uid) FROM users u JOIN users_roles ur ON u.uid = ur.uid
+    JOIN role r ON ur.rid = r.rid WHERE r.name = :role";
+
+  $value = db_query($sql, array(':role' => 'manager'))->fetchField();
+  $data[] = array($value, 'Managers');
+
+  $value = db_query($sql, array(':role' => 'editor'))->fetchField();
+  $data[] = array($value, 'Editors');
+
+  $list = array();
+
+  foreach ($data as $item) {
+    if ($item == '--') {
+      $list[] = '<hr>';
+    }
+    else {
+      $value = is_numeric($item[0]) ? number_format($item[0]) : $item[0];
+      $label = $item[1];
+
+      $list[] = <<<OUT
+        <div class="summary-value">$value</div>
+        <div class="summary-label">$label</div>
+OUT;
+    }
+  }
+
+  $attributes = array('class' => array('db-website-summary', 'clearfix'));
+  $block['content'] = theme('item_list', array('items' => $list, 'attributes' => $attributes ));
+  $block['subject'] = '<i class="fa fa-tasks"></i> Website Summary';
+
+  return $block;
+}
+
+function dlawdashb_site_summary() {
+  $list = array();
+
+  $wrapper = '<span class="summary_container"><span class = "summary_label">';
+  $wrapper_end = "</span>";
+
+  $num_wrapper = '<span class = "summary_number">';
+  $num_wrapper_end = "</span></span>";
+
+  $item_classes = array('col-sm-3');
+
+  // Pages
+
+  $list[] = array(
+    'data' => $wrapper . 'Pages' . $wrapper_end . $num_wrapper . db_query("SELECT COUNT(*) FROM node WHERE type = 'page'")->fetchField() . $num_wrapper_end,
+    'class' => $item_classes,
+  );
+  // News
+
+  $list[] = array(
+    'data' => $wrapper . 'News' . $wrapper_end . $num_wrapper . db_query("SELECT COUNT(*) FROM field_data_field_news WHERE field_news_value = 1")->fetchField() . $num_wrapper_end,
+    'class' => $item_classes,
+  );
+  // Events
+
+  $list[] = array(
+    'data' => $wrapper . 'Events' . $wrapper_end . $num_wrapper . db_query("SELECT COUNT(*) FROM field_data_field_date WHERE delta = 0")->fetchField() . $num_wrapper_end,
+    'class' => $item_classes,
+  );
+  // Contacts
+
+  $list[] = array(
+    'data' => $wrapper . 'Contacts' . $wrapper_end . $num_wrapper . db_query("SELECT COUNT(*) FROM node WHERE type = 'contact'")->fetchField() . $num_wrapper_end,
+    'class' => $item_classes,
+  );
+  // Files
+
+  $list[] = array(
+    'data' => $wrapper . 'Files' . $wrapper_end . $num_wrapper . db_query("SELECT COUNT(*) FROM file_managed WHERE type <> 'image'")->fetchField() . $num_wrapper_end,
+    'class' => $item_classes,
+  );
+  // Images
+
+  $list[] = array(
+    'data' => $wrapper . 'Images' . $wrapper_end . $num_wrapper . db_query("SELECT COUNT(*) FROM file_managed WHERE type = 'image'")->fetchField() . $num_wrapper_end,
+    'class' => $item_classes,
+  );
+
+  // Categories
+
+  $list[] = array(
+    'data' => $wrapper . 'Topics' . $wrapper_end . $num_wrapper . db_query("SELECT COUNT(td.tid) FROM taxonomy_term_data td JOIN taxonomy_vocabulary vo ON td.vid = vo.vid
+    WHERE vo.machine_name = :name", array(':name' => 'category'))->fetchField() . $num_wrapper_end,
+    'class' => $item_classes,
+  );
+
+  // Tags
+
+  $list[] = array(
+    'data' => $wrapper . 'Tags' . $wrapper_end . $num_wrapper . db_query("SELECT COUNT(td.tid) FROM taxonomy_term_data td JOIN taxonomy_vocabulary vo ON td.vid = vo.vid
+    WHERE vo.machine_name = :name", array(':name' => 'tags'))->fetchField() . $num_wrapper_end,
+    'class' => $item_classes,
+  );
+
+  // ZIP
+
+  $list[] = array(
+    'data' => $wrapper . 'ZIP' . $wrapper_end . $num_wrapper . db_query("SELECT COUNT(td.tid) FROM taxonomy_term_data td JOIN taxonomy_vocabulary vo ON td.vid = vo.vid
+    WHERE vo.machine_name = :name", array(':name' => 'zipcode'))->fetchField() . $num_wrapper_end,
+    'class' => $item_classes,
+  );
+
+  // Languages
+
+  $list[] = array(
+    'data' => $wrapper . 'Languages' . $wrapper_end . $num_wrapper . db_query("SELECT COUNT(td.tid) FROM taxonomy_term_data td JOIN taxonomy_vocabulary vo ON td.vid = vo.vid
+    WHERE vo.machine_name = :name", array(':name' => 'language'))->fetchField() . $num_wrapper_end,
+    'class' => $item_classes,
+  );
+
+  // Managers
+
+  $list[] = array(
+    'data' => $wrapper . 'Managers' . $wrapper_end . $num_wrapper . db_query("SELECT COUNT(u.uid) FROM users u JOIN users_roles ur ON u.uid = ur.uid
+    JOIN role r ON ur.rid = r.rid
+    WHERE r.name = :role", array(':role' => 'manager'))->fetchField() . $num_wrapper_end,
+    'class' => $item_classes,
+  );
+
+  // Editors
+
+  $list[] = array(
+    'data' => $wrapper . 'Editors' . $wrapper_end . $num_wrapper . db_query("SELECT COUNT(u.uid) FROM users u JOIN users_roles ur ON u.uid = ur.uid
+    JOIN role r ON ur.rid = r.rid
+    WHERE r.name = :role", array(':role' => 'editor'))->fetchField() . $num_wrapper_end,
+    'class' => $item_classes,
+  );
+
+  return $list;
+}
+
+/**
+ * Change the administration menu content before it is rendered.
+ *
+ * Only use this hook to alter existing data in the menu structure. Use
+ * hook_admin_menu_output_build() to *add* new data.
+ *
+ * @param array $content
+ *   A structured array suitable for drupal_render(). Passed by reference.
+ *
+ * @see hook_admin_menu_output_build()
+ */
+function dlawdashb_admin_menu_output_alter(&$content) {
+  $img_url = '/' . drupal_get_path('theme', 'dlaw4_bootswatch') . "/image/oa-ico-32.png";
+  $img = '<img src="' .  $img_url . '" alt="Open Advocate" height="17" width="17">';
+  $content['#prefix'] = '<div id="admin-menu" class="admin-menu-site-templated4-openadvocate-local-org"><div id="admin-menu-wrapper"><span class="admin_oa_img">' . $img . '</span><div class="admin-oa">OpenAdvocate</div>';
+
+  global $user;
+
+  if ($user->uid != 1) {
+    unset($content['menu']['node/add']);
+
+    // After revoking permission 'access admin pages' -- which removed links to
+    // Dashboard -- this is necessary to rebuild Dashboard links in the admin
+    // menu.
+    $content['menu']['admin/dashboard'] = array(
+      '#title' => 'Dashboard',
+      '#href' => 'admin/dashboard',
+      '#weight' => -15,
+    );
+
+    if (user_access('access frontlayout')) {
+      $content['menu']['admin/dashboard']['admin/dashboard/appearance/frontlayout'] = array(
+        '#title' => 'Home Page Builder',
+        '#href' => 'admin/dashboard/appearance/frontlayout',
+        '#weight' => 1,
+      );
+    }
+
+    if (user_access('access dlaw dashboard')) {
+      $content['menu']['admin/dashboard']['admin/dashboard/content'] = array(
+        '#title' => 'Content',
+        '#href' => 'admin/dashboard/content',
+        '#weight' => 2,
+      );
+    }
+
+    if (user_access('administer dlaw settings')) {
+      $content['menu']['admin/dashboard']['admin/dashboard/settings'] = array(
+        '#title' => 'Site Settings',
+        '#href' => 'admin/dashboard/settings',
+        '#weight' => 3,
+      );
+    }
+
+    if (user_access('administer users')) {
+      $content['menu']['admin/dashboard']['admin/dashboard/users'] = array(
+        '#title' => 'Users',
+        '#href' => 'admin/dashboard/users',
+        '#weight' => 4,
+      );
+    }
+
+    if (dashboardga_report_access()) {
+      $content['menu']['admin/dashboard']['admin/dashboard/reports'] = array(
+        '#title' => 'Reports',
+        '#href' => 'admin/dashboard/reports',
+        '#weight' => 5,
+      );
+    }
+
+    $content['menu']['admin/add/page'] = array(
+      '#title' => 'Add Page',
+      '#href' => 'node/add/page',
+      '#weight' => '9',
+      '#options' => array(
+        'alias' => TRUE
+      ),
+    );
+    $content['menu']['admin/dashboard/appearance/slides'] = array(
+      '#title' => 'Slides',
+      '#href' => 'admin/dashboard/appearance/slides',
+      '#weight' => '10',
+      '#options' => array(
+        'alias' => TRUE
+      ),
+    );
+    $content['menu']['admin/dashboard/refnet'] = array(
+      '#title' => 'Referral Network',
+      '#href' => 'admin/dashboard/refnet',
+      '#weight' => '11',
+      '#options' => array(
+        'alias' => TRUE
+      ),
+    );
+    $content['menu']['admin/dashboard/refnet/orgs'] = array(
+      '#title' => 'Organizations',
+      '#href' => 'admin/dashboard/refnet/orgs',
+      '#weight' => '12',
+      '#options' => array(
+        'alias' => TRUE
+      ),
+    );
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function dlawdashb_form_taxonomy_form_term_alter(&$form, $form_state) {
+  global $user;
+
+  // Case 41813: Quickly hide clutters on term edit page as some elements are
+  // not as easy to manipulate via $form variable.
+  if ($user->uid > 1) {
+    if ($form['#vocabulary']->machine_name == 'category') {
+      $js = <<<EOD
+        (function ($) {
+          $(function() {
+            $('#edit-description-format').hide();
+            $('#edit-relations').hide();
+            $('#edit-path').hide();
+            $('#edit-metatags').hide();
+            $('#edit-redirect').hide();
+          });
+        })(jQuery);
+EOD;
+    }
+    else {
+      $js = <<<EOD
+        (function ($) {
+          $(function() {
+            $('.text-format-wrapper').hide();
+            $('#edit-relations').hide();
+            $('#edit-path').hide();
+            $('#edit-metatags').hide();
+            $('#edit-redirect').hide();
+          });
+        })(jQuery);
+EOD;
+    }
+
+    drupal_add_js($js, array('type' => 'inline'));
+  }
+
+  // Icon field for Topics (category).
+  if ($form['#vocabulary']->machine_name == 'category') {
+    $icons = '';
+    if ($list = dlawdashb_get_category_icon_list()) {
+      foreach ($list as $url) {
+        $caption = '';
+        if (preg_match('#/([^/]+)-filled\.png$#', $url, $match)) {
+          $caption = $match[1];
+          $caption = str_replace('-', ' ', $caption);
+          $caption = ucfirst($caption);
+        }
+        $icons .= <<<OUT
+          <button type="button">
+            <img src="{$url}" width="50">
+            {$caption}
+          </button>
+OUT;
+      }
+    }
+
+    $form['field_category_icon']['#suffix'] = <<<OUT
+      <fieldset class="category-icon-list">
+        <legend>Choose from popular icons:</legend>
+        {$icons}
+      </fieldset>
+      <fieldset class="category-icon-instruction">
+        <legend>Or find an icon yourself at icons8.com:</legend>
+        <ol>
+          <li>Go to <a href="https://icons8.com/icon/new-icons/ios" target="_blank">https://icons8.com/icon/new-icons/ios</a></li>
+          <li>Search with keywords.</li>
+          <li>Click on the icon (only filled icons are accepted).</li>
+          <li>On the right side bar, click on "Generate HTML".</li>
+          <li>Click on PNG CDN.</li>
+          <li>From the HTML code, copy the image URL (src).
+            <ul>
+              <li>The URL should look something like https://png.icons8.com/ios/100/000000/law-filled.png</li>
+              <li>Note the image URL indicates iOS style and filled.</li>
+            </ul>
+          <li>Paste the URL to the textbox above.</li>
+        </ol>
+      </fieldset>
+OUT;
+
+    $form['#attached']['js'][] = drupal_get_path('module', 'dlawdashb') . '/dlawdashb.js';
+    $form['#validate'][] = 'dlawdashb_form_taxonomy_form_term_validate';
+  }
+}
+
+function dlawdashb_form_taxonomy_form_term_validate(&$form, &$form_state) {
+  $values = &$form_state['values'];
+
+  if (!empty($values['field_category_icon'][LANGUAGE_NONE][0]['value'])) {
+    $url = $values['field_category_icon'][LANGUAGE_NONE][0]['value'];
+
+    if (preg_match('#src="([^"]+)"#', $url, $match)) {
+      $url = $match[1];
+    }
+
+    if (!preg_match('#^https:\/\/.+icons8.com\/ios\/.+-filled.png$#', $url)) {
+      form_set_error('field_category_icon', 'The icon URL should be from icons8.com, iOS style with Fill mode. Example) https://png.icons8.com/ios/50/000000/babys-room-filled.png');
+      return;
+    }
+
+    // Use 100px version of image.
+    $url = preg_replace('#.com\/ios\/\d+\/#', '.com/ios/100/', $url);
+    $result = drupal_http_request($url, array(), 'HEAD');
+
+    if ($result->code == 200) {
+      $values['field_category_icon'][LANGUAGE_NONE][0]['value'] = $url;
+      dlawdashb_set_category_icon_list($url);
+      drupal_set_message("<img src=\"{$url}\" height=\"50\" width=\"50\" style=\"opacity:0.5; filter:alpha(opacity=50)\"> This icon will be used for the term.");
+    }
+    else {
+      form_set_error('field_category_icon', 'The icon URL is not valid. Please check again.');
+    }
+  }
+}
+
+function dlawdashb_get_category_icon_list() {
+  $shared_files_dir = 'sites/default/files';
+  file_prepare_directory($shared_files_dir, FILE_CREATE_DIRECTORY);
+
+  $path = $shared_files_dir . '/_category-icon-list-cache.txt';
+
+  $list = array();
+  if ($abs_path = realpath($path)) {
+    $list = file($abs_path, FILE_IGNORE_NEW_LINES);
+  }
+
+  return $list;
+}
+
+function dlawdashb_set_category_icon_list($url) {
+  $list = dlawdashb_get_category_icon_list();
+
+  if (!in_array($url, $list)) {
+    $list[] = $url;
+    array_filter($list);
+    file_unmanaged_save_data(
+      join("\n", $list),
+      'sites/default/files/_category-icon-list-cache.txt',
+      FILE_EXISTS_REPLACE
+    );
+  }
+}

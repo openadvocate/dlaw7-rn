@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the DLAW4 Home Page feature.
+ */
+
+include_once 'dlaw4_home_page.features.inc';

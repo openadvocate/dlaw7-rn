@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the DLAW4 Auto Alias feature.
+ */
+
+include_once 'dlaw4_auto_alias.features.inc';

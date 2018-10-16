@@ -1,0 +1,94 @@
+<?php
+/**
+ * @file
+ * Code for the DLAW4 Basic Page feature.
+ */
+
+include_once 'dlaw4_basic_page.features.inc';
+
+/**
+ * Implements hook_block_info().
+ */
+function dlaw4_basic_page_block_info() {
+  $blocks = array();
+
+  $blocks['dlaw4_basic_page_event_dates'] = array(
+    'info' => t('Event dates'),
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function dlaw4_basic_page_block_view($delta = '') {
+  $function = $delta . '_block';
+  if (function_exists($function)) {
+    return $function();
+  }
+}
+
+function dlaw4_basic_page_event_dates_block() {
+  if ($node = menu_get_object() and $node->type == 'page') {
+    if (!empty($node->field_date)) {
+      $next = array();
+      foreach ($node->field_date['und'] as $date) {
+        if (date('Ymd', $date['value']) >= date('Ymd') and empty($next[0])) {
+          if (date('H', $date['value']) === '00') {
+            $next[0] = date('l, F j, Y', $date['value']);
+          }
+          else {
+            $next[0] = date('l, F j, Y - g:ia', $date['value']);
+          }
+
+          if (!empty($date['value2']) and $date['value'] != $date['value2']) {
+            $next[0] .= ' to ';
+
+            if (date('Ymd', $date['value']) == date('Ymd', $date['value2'])) {
+              $next[0] .= date('g:ia T', $date['value2']);
+            }
+            elseif (date('H', $date['value2']) === '00') {
+              $next[0] .= date('l, F j, Y', $date['value2']);
+            }
+            else {
+              $next[0] .= date('l, F j, Y - g:ia T', $date['value2']);
+            }
+          }
+        }
+        elseif (!empty($next[0]) and empty($next[1])) {
+          $next[1] = date('l, F j, Y - g:ia', $date['value']);
+        }
+        elseif (!empty($next[1]) and empty($next[2])) {
+          $next[2] = date('l, F j, Y - g:ia', $date['value']);
+        }
+      }
+
+      $content = '';
+      if (!empty($next[0])) {
+        $content = "<div class=\"lead\"><span style=\"color: #ccc\">Date:</span> {$next[0]}</div>";
+
+        $upcoming = '';
+        if (!empty($next[1])) {
+          $upcoming .= $next[1];
+        }
+        if (!empty($next[2])) {
+          $upcoming .= ' and ' . $next[2];
+        }
+        if ($upcoming) {
+          $upcoming = 'Upcoming: ' . $upcoming;
+
+          $content .= "<div class=\"small\">{$upcoming}</div>";
+        }
+      }
+
+      if (!empty($node->field_location['und'][0]['value'])) {
+        $content .= '<div class="lead">'
+          . '<span style="color: #ccc">Location:</span> '
+          . check_plain($node->field_location['und'][0]['value'])
+          . '</div>';
+      }
+
+      return array('subject' => '', 'content' => $content);
+    }
+  }
+}

@@ -1,0 +1,38 @@
+<?php
+
+/**
+ * @file
+ * Input filter to include internal page as iframe.
+ */
+
+/**
+ * Implements hook_filter_info().
+ */
+function dlaw_iframe_filter_info() {
+  $filters['dlaw_iframe'] = array(
+    'title' => t('Iframe internal page'), 
+    'description' => t('Converts a token (e.g. [/node/123]) to an iframe to include internal page.'),
+    'process callback' => 'dlaw_iframe_filter_process',
+  );
+
+  return $filters;
+}
+
+/**
+ * Implements hook_filter_FILTER_process().
+ */
+function dlaw_iframe_filter_process($text, $filter, $format, $langcode, $cache, $cache_id) {
+  $lines = explode("\n", $text);
+
+  $lines = preg_replace_callback('#<p>\[/([^ ]+)\]</p>#', 'dlaw_iframe_filter_embed', $lines);
+
+  return join("\n", $lines);
+}
+
+function dlaw_iframe_filter_embed($match) {
+  $path = $match[1];
+
+  $iframe = '<iframe src="/' . $path . '?kiosk" style="width: 100%" frameborder="0" onload="this.style.height = this.contentWindow.document.body.scrollHeight + \'px\'"></iframe>';
+
+  return $iframe;
+}

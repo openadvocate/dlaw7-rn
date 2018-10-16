@@ -1,0 +1,32 @@
+<?php
+/**
+ * @file
+ * Drupal needs this blank file.
+ */
+
+
+/**
+ * Implements hook_menu_alter().
+ */
+function roles_and_permissions_menu_alter(&$items) {
+  // Hide these tabs on user profile.
+  if (isset($items['user/%user/contact'])) {
+    $items['user/%user/contact']['access callback'] = FALSE;
+  }
+
+  if (isset($items['user/%user/linkchecker'])) {
+    $items['user/%user/linkchecker']['access callback'] = FALSE;
+  }
+
+  if (isset($items['user/%user/shortcuts'])) {
+    $items['user/%user/shortcuts']['access callback'] = FALSE;
+  }
+
+  if (isset($items['user/%/scheduler'])) {
+    $items['user/%/scheduler']['access callback'] = FALSE;
+  }
+
+  if (isset($items['user/%user/track/navigation'])) {
+    $items['user/%user/track/navigation']['access callback'] = FALSE;
+  }
+}

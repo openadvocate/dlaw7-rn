@@ -1,0 +1,17 @@
+name = DLAW4 Footer Menu
+core = 7.x
+package = Features
+version = 7.x-1.6
+project = dlaw4_footer_menu
+dependencies[] = features
+dependencies[] = menu
+dependencies[] = menu_admin_per_menu
+features[features_api][] = api:2
+features[menu_custom][] = management
+features[menu_custom][] = menu-footer-menu
+features[menu_links][] = menu-footer-menu_log-out:user/logout
+features[menu_links][] = menu-footer-menu_login:user/login
+features[user_permission][] = administer menu-footer-menu menu items
+features_exclude[menu_links][menu-footer-menu_home:<front>] = menu-footer-menu_home:<front>
+features_exclude[menu_links][management_footer-menu:admin/structure/menu/manage/menu-footer-menu] = management_footer-menu:admin/structure/menu/manage/menu-footer-menu
+mtime = 1412812878

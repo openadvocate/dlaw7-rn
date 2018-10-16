@@ -1,0 +1,5 @@
+name = Google Translate
+description = Enables Google Translate Gadget
+core = 7.x
+package = DLAW
+version = 7.x-0.1

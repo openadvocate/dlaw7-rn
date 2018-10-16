@@ -1,0 +1,9 @@
+name = Search Promotion
+description = Promote contents in search
+core = 7.x
+package = Features
+version = 7.x-0.1
+project = dlaw5_promoted
+dependencies[] = apachesolr
+features[features_api][] = api:2
+mtime = 1463436589

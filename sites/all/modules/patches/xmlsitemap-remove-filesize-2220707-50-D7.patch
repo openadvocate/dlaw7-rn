@@ -1,0 +1,15 @@
+diff --git a/xmlsitemap.xmlsitemap.inc b/xmlsitemap.xmlsitemap.inc
+index 94fdef1..0ce9f13 100644
+--- a/xmlsitemap.xmlsitemap.inc
++++ b/xmlsitemap.xmlsitemap.inc
+@@ -152,10 +152,6 @@ class XMLSitemapWriter extends XMLWriter {
+     //  file_put_contents($file_gz, gzencode(file_get_contents($file), 9));
+     //}
+ 
+-    if (!filesize($this->uri)) {
+-      throw new XMLSitemapGenerationException(t('Generated @file resulted in an empty file.', array('@file' => $this->uri)));
+-    }
+-
+     return $return;
+   }
+ }

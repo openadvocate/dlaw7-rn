@@ -1,0 +1,4 @@
+name = Methyl Yellow Idicator
+description = Creates indicator for unpublished nodes. Print "methyl_yellow_unpubllished" variable in page.tpl.
+package = boot_tools
+core = 7.x

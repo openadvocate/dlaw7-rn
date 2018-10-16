@@ -1,0 +1,15 @@
+<?php
+/**
+ * @file
+ * Code for the Events feature.
+ */
+
+include_once 'events.features.inc';
+
+/**
+* Restrict access to /node
+*/
+function events_menu_alter(&$items) {
+  $path = 'node/%node';
+  $items[$path . '/repeats']['access callback'] = FALSE;
+}

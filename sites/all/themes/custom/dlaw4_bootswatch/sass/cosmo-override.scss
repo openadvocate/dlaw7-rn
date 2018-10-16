@@ -1,0 +1,40 @@
+$linkcolor: #007fff;
+
+#footer-region{
+  color: #fff;
+  a{
+  }
+}
+
+#apachesolr-panels-search-block{
+  .btn.btn-primary.form-submit {
+      padding: 11px 13px;
+  }
+}
+
+#site-toolbar{
+  #apachesolr-panels-search-block .form-item-apachesolr-panels-search-form{
+    margin-right: -79px;
+  }
+}
+
+
+ #simple-toc li.active{
+  a, a:hover{
+    border-left: 1px solid $linkcolor;
+    color: $linkcolor;
+  }
+}
+#simple-toc li{
+  a:hover{
+    color: $linkcolor !important;
+  }
+}
+.field-name-field-attachments, .field-name-field-links{
+  a{
+    text-decoration: none;
+    &:hover{
+      text-decoration: underline;
+    }
+  }
+}

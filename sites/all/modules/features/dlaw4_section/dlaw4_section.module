@@ -1,0 +1,143 @@
+<?php
+/**
+ * @file
+ * Code for the DLAW4 Section feature.
+ */
+
+include_once 'dlaw4_section.features.inc';
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function dlaw4_section_form_page_node_form_alter(&$form, &$form_state, $form_id) {
+  // Change to custom auto complete callback.
+  $new_path = 'dlaw4_section/autocomplete';
+  $max_delta = $form['field_section'][LANGUAGE_NONE]['#max_delta'];
+
+  for ($delta = 0; $delta <= $max_delta; $delta++) {
+    $form['field_section'][LANGUAGE_NONE][$delta]['target_id']['#autocomplete_path'] = $new_path;
+  }
+
+  // Validate child section pages for duplicity.
+  $form['#validate'][] = 'dlaw4_section_node_form_validate';
+}
+
+/**
+ * Custom validator for node form.
+ * Validate child section pages for duplicity.
+ */
+function dlaw4_section_node_form_validate($form, $form_state) {
+  $values = $form_state['values'];
+  
+  if (!empty($values['field_section'][LANGUAGE_NONE])) {
+    $duplicate_test = array();
+
+    foreach ($values['field_section'][LANGUAGE_NONE] as $section) {
+      // Check for duplicate entries.
+      if (!empty($section['target_id'])) {
+        if (isset($duplicate_test[$section['target_id']])) {
+          form_set_error('field_section', 'You have entered duplicate child section pages. Please check again.');
+        }
+        else {
+          $duplicate_test[$section['target_id']] = TRUE;
+        }
+
+        // Check if the child is already used in another section.
+        $used_already = (bool)db_query(
+         "SELECT entity_id FROM field_data_field_section
+          WHERE field_section_target_id = :target_id AND entity_id <> :node_id",
+          array(':target_id' => $section['target_id'], ':node_id' => $values['nid']))
+        ->fetchField();
+
+        if ($used_already) {
+          $used_node = node_load($section['target_id']);
+          form_set_error('field_section', "'<em>$used_node->title ($used_node->nid)</em>': You cannot include a section child page that is already in another section.");
+        }
+
+        // Check if the child is itself.
+        if (!empty($form['#node']->nid) && !empty($section['target_id']) && $section['target_id'] == $form['#node']->nid) {
+          form_set_error('field_section', "You cannot include current page as its own section child.");
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function dlaw4_section_menu() {
+  $items = array();
+
+  $items['dlaw4_section/autocomplete'] = array(
+    'title' => 'Section Autocomplete',
+    'page callback' => 'dlaw4_section_autocomplete_callback',
+    'access arguments' => array('create page content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ *  Preprocess for library_page.tpl.php
+ */
+function dlaw4_section_preprocess_page(&$vars) {
+
+  // $view = views_get_view('section');
+  //   // print_r( $view->args);
+
+  // $view->args[] = $vars['node']->nid;
+
+  // if ($view && $view->access('panel_pane_1')) {    
+  //   $view->set_display('contact_block');
+  //   $view->init_display();
+  //   $view->pre_execute();
+  //   $view->execute();
+  // }
+
+            // if (!empty($vars['node']->nid)) {
+            //   $view = views_get_view_result("section", "panel_pane_1", $vars['node']->nid);
+            //   if ( !empty($view) ) {      
+            //     $vars['dlaw_page_sections'] = views_embed_view("section", "panel_pane_1", $vars['node']->nid);
+            //   }
+            // }
+  // $vars['dlaw_page_sections'] = $view->result;
+
+}
+
+/**
+ * Autocomplete callback for menu dlaw4_section/autocomplete.
+ * Customized to filter out pages that are already parent or child.
+ * Some code borrowed from entityreference_autocomplete_callback_get_matches().
+ */
+function dlaw4_section_autocomplete_callback($string = '') {
+  $matches = array();
+
+  if (!empty($string)) {
+    $result = db_query(
+      "SELECT nid, title
+      FROM node
+      WHERE status = 1 AND type = 'page' AND title LIKE :string
+        AND nid NOT IN (
+          SELECT entity_id FROM field_data_field_section
+          UNION
+          SELECT field_section_target_id FROM field_data_field_section
+        )
+      LIMIT 10",
+      array(':string' => '%' . db_like($string) . '%'));
+
+    foreach ($result as $row) {
+      $key = "$row->title ($row->nid)";
+      // Strip things like starting/trailing white spaces, line breaks and tags.
+      $key = preg_replace('/\s\s+/', ' ', str_replace("\n", '', trim(decode_entities(strip_tags($key)))));
+      // Names containing commas or quotes must be wrapped in quotes.
+      if (strpos($key, ',') !== FALSE || strpos($key, '"') !== FALSE) {
+        $key = '"' . str_replace('"', '""', $key) . '"';
+      }
+      $matches[$key] = '<div class="reference-autocomplete">' . $row->title . '</div>';
+    }
+  }
+
+  drupal_json_output($matches);
+}

@@ -1,0 +1,75 @@
+<?php
+/**
+ * @file
+ * Code for the DLAW4 Contact feature.
+ */
+
+include_once 'dlaw4_contact.features.inc';
+
+define('DLAW4_MANAGER_RID', 3);
+define('DLAW4_EDITOR_RID',  4);
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ * Hide checkbox option from users. Enabling contact module (used for site wide contact form)
+ * leaves the checkbox visible without fine tuned permission.
+ */
+/*function dlaw4_contact_form_user_profile_form_alter(&$form, &$form_state) {
+  if (isset($form['contact'])) {
+    $form['contact']['#access'] = FALSE;
+  }
+
+  if (user_access('administer users') && !user_access('administer permissions')) {
+    $account = $form['#user'];
+    $roles = array_map('check_plain', user_roles(TRUE));
+
+    unset($roles[DRUPAL_AUTHENTICATED_RID]);
+
+    $form['account']['manage_roles'] = array(
+      '#type' => 'radios',
+      '#title' => t('Roles'),
+      '#default_value' => !empty($account->roles[DLAW4_MANAGER_RID]) ? DLAW4_MANAGER_RID : DLAW4_EDITOR_RID,
+      '#options' => $roles,
+    );
+
+    $form['#validate'][] = 'dlaw4_contact_user_profile_validate';
+  }
+}*/
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ * Hide checkbox option from users. Enabling contact module (used for site wide contact form)
+ * leaves the checkbox visible without fine tuned permission.
+ */
+/*function dlaw4_contact_form_user_register_form_alter(&$form, &$form_state) {
+  if (user_access('administer users') && !user_access('administer permissions')) {
+    $roles = array_map('check_plain', user_roles(TRUE));
+
+    unset($roles[DRUPAL_AUTHENTICATED_RID]);
+
+    $form['account']['manage_roles'] = array(
+      '#type' => 'radios',
+      '#title' => t('Roles'),
+      '#default_value' => DLAW4_EDITOR_RID,
+      '#options' => $roles,
+    );
+
+    $form['#validate'][] = 'dlaw4_contact_user_profile_validate';
+  }
+}*/
+
+/*function dlaw4_contact_user_profile_validate(&$form, &$form_state) {
+  if (isset($form['account']['manage_roles'])) {
+    if (!empty($form_state['values']['manage_roles'])) {
+      $role = $form_state['values']['manage_roles'];
+      if ($role == DLAW4_MANAGER_RID) {
+        $form_state['values']['roles'][DLAW4_MANAGER_RID] = DLAW4_MANAGER_RID;
+        $form_state['values']['roles'][DLAW4_EDITOR_RID] = 0;
+      }
+      elseif ($role == DLAW4_EDITOR_RID) {
+        $form_state['values']['roles'][DLAW4_MANAGER_RID] = 0;
+        $form_state['values']['roles'][DLAW4_EDITOR_RID] = DLAW4_EDITOR_RID;
+      }
+    }
+  }
+}*/

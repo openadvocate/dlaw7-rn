@@ -1,0 +1,80 @@
+/*
+  This patch is to fix the bug in dashboard that does not handle module and block names
+  that contain underscores and hyphens.
+
+  Not only this contains patch from https://drupal.org/node/936798#comment-6344936,
+  additional change (dashboard_load_blocks()) was added to fix the issue.
+
+*/
+
+Index: dashboard.module
+===================================================================
+--- dashboard.module	(revision 794)
++++ dashboard.module	(working copy)
+@@ -546,16 +546,26 @@
+   // Check the form token to make sure we have a valid request.
+   if (!empty($_REQUEST['form_token']) && drupal_valid_token($_REQUEST['form_token'], 'dashboard-update')) {
+     parse_str($_REQUEST['regions'], $regions);
++
++    $blocks_available = dashboard_load_blocks();
++
+     foreach ($regions as $region_name => $blocks) {
+       if ($region_name == 'disabled_blocks') {
+         $region_name = 'dashboard_inactive';
+       }
+       foreach ($blocks as $weight => $block_string) {
+-        // Parse the query string to determine the block's module and delta.
+-        preg_match('/block-([^-]+)-(.+)/', $block_string, $matches);
++        // Trim prefix 'block-'
++        $block_string = substr($block_string, 6);
++        // Normalize with hyphen to make it easy to identify module and delta with $blocks_available.
++        $block_string = str_replace('_', '-', $block_string); 
++
++        if (!isset($blocks_available[$block_string])) {
++          continue;
++        }
++
+         $block = new stdClass();
+-        $block->module = $matches[1];
+-        $block->delta = $matches[2];
++        $block->module = $blocks_available[$block_string]['module'];
++        $block->delta = $blocks_available[$block_string]['delta'];
+ 
+         $block->region = $region_name;
+         $block->weight = $weight;
+@@ -582,6 +592,30 @@
+ }
+ 
+ /**
++ * Helps to find module name and block delta that contains '-' and '_'
++ */
++function dashboard_load_blocks() {
++  $blocks = array();
++
++  if ($admin_theme = variable_get('admin_theme', '')) {
++    $result = db_query("SELECT module, delta FROM block WHERE status = 1 AND theme = :theme",
++      array(':theme' => $admin_theme));
++
++    foreach ($result as $row) {
++      $module_hyph = str_replace('_', '-', $row->module);
++      $delta_hyph = str_replace('_', '-', $row->delta);
++      
++      $blocks["$module_hyph-$delta_hyph"] = array(
++        'module' => $row->module,
++        'delta' => $row->delta,
++      );
++    }
++  }
++
++  return $blocks;
++}
++
++/**
+  * Returns HTML for the entire dashboard.
+  *
+  * @param $variables
+@@ -678,4 +712,3 @@
+   }
+   return $output;
+ }
+-

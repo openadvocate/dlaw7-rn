@@ -1,0 +1,82 @@
+<?php
+/**
+ * @file
+ * Code for the DLAW Common feature.
+ */
+
+include_once 'dlaw_common.features.inc';
+
+/**
+ * Implements hook_form_alter();
+ */
+function dlaw_common_form_alter(&$form, &$form_state, $form_id) {
+  // Prevent slash in title.
+  if (in_array($form_id, array('page_node_form', 'contact_node_form'))) {
+    $form['#validate'][] = 'dlaw_common_content_form_validate';
+  }
+}
+
+function dlaw_common_content_form_validate(&$form, &$form_state) {
+  $title =  $form_state['values']['title'];
+  if (strpos($title, '/') !== FALSE) {
+    form_set_error('title', 'Title cannot have a slash character /');
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter();
+ */
+function dlaw_common_form_taxonomy_form_term_alter(&$form, &$form_state, $form_id) {
+  $form['#submit'][] = 'dlaw_common_form_taxonomy_form_term_submit';
+}
+
+/**
+ * Alter Drupal message to append a custom one.
+ */
+function dlaw_common_form_taxonomy_form_term_submit(&$form, &$form_state) {
+  if (isset($_SESSION['messages']['status'])) {
+    foreach ($_SESSION['messages']['status'] as $key => $message) {
+      if (strpos($message, 'Created new term <em class="placeholder">') === 0) {
+        $name = db_select('taxonomy_vocabulary', 't')
+          ->fields('t', array('name'))
+          ->condition('machine_name', arg(3))
+          ->execute()->fetchField();
+
+        $message .= ' ' . t('Add another term below or return to !cat.', array(
+          '!cat' => l($name, 'admin/structure/taxonomy/' . arg(3))));
+        $_SESSION['messages']['status'][$key] = $message;
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function dlaw_common_block_info() {
+  $blocks = array();
+
+  $blocks['dlaw_common_updated_date'] = array(
+    'info' => t('Updated date'),
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function dlaw_common_block_view($delta = '') {
+  $function = $delta . '_block';
+  if (function_exists($function)) {
+    return $function();
+  }
+}
+
+function dlaw_common_updated_date_block() {
+  if ($node = menu_get_object() and variable_get("sitesettings_updated_date_{$node->type}", 0)) {
+    $content = '<time datetime="' . date('Y-m-d', $node->changed) . '">Last updated on ' . date('F j, Y', $node->changed) . '</time>';
+
+    return array('subject' => '', 'content' => $content);
+  }
+}

@@ -1,0 +1,28 @@
+.dlaw-social-media-links-wrapper a {
+  color: #fff; }
+
+#toolbar-chevron {
+  color: #fff; }
+
+a, .pagination > li > a, .pagination > li > span {
+  color: #CC0000; }
+  a:hover, .pagination > li > a:hover, .pagination > li > span:hover {
+    color: #990000; }
+
+.btn-primary {
+  background: #990000; }
+  .btn-primary:hover {
+    background: #660000; }
+
+#edit-apachesolr-panels-search-form {
+  height: 37px; }
+
+#footer-region {
+  color: #333333; }
+  #footer-region a {
+    color: #fff; }
+
+a:visited {
+  color: #990000; }
+
+/*# sourceMappingURL=united-override.css.map */

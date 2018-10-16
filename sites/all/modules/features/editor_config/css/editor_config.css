@@ -1,0 +1,58 @@
+#edit-body a.ckeditor_links {
+  display: none !important;
+}
+
+#node_page_form_group_images {
+  margin-top: 5px;
+}
+
+#edit-field-images {
+  margin-top: 0;
+}
+#edit-field-images fieldset[id^=edit-field-images-und] {
+  margin-top: 0;
+  margin-bottom: 20px;
+  padding-left: 0;
+  border: none;
+}
+#edit-field-images fieldset[id^=edit-field-images-und] .tabledrag-toggle-weight-wrapper, #edit-field-images fieldset[id^=edit-field-images-und] .form-item .description {
+  display: none;
+}
+#edit-field-images fieldset[id^=edit-field-images-und] table[id^=edit-field-images-und] {
+  display: block;
+  width: 100%;
+  max-height: 230px;
+  overflow-y: scroll;
+  margin-bottom: 10px;
+}
+#edit-field-images fieldset[id^=edit-field-images-und] table[id^=edit-field-images-und] .image-preview {
+  padding-bottom: 0;
+}
+#edit-field-images fieldset[id^=edit-field-images-und] table[id^=edit-field-images-und] .file-icon {
+  visibility: hidden;
+  margin: 0.5em 0;
+}
+#edit-field-images fieldset[id^=edit-field-images-und] table[id^=edit-field-images-und] thead {
+  display: none;
+}
+#edit-field-images fieldset[id^=edit-field-images-und] table[id^=edit-field-images-und] td {
+  padding: 0;
+  vertical-align: middle;
+}
+#edit-field-images fieldset[id^=edit-field-images-und] table[id^=edit-field-images-und] td:last-child {
+  vertical-align: middle;
+}
+
+#clear-calendar {
+  margin: 2.75em 5px 0;
+}
+
+#edit-group_links .link-field-column {
+  width: 40%;
+}
+#edit-group_links .form-type-textfield input {
+  width: 80%;
+}
+#edit-group_links .clear-link {
+  margin-left: 1em;
+}

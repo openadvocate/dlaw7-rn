@@ -1,0 +1,230 @@
+diff --git a/sites/all/modules/contrib/google_analytics_reports/GAFeedv3.lib.inc b/sites/all/modules/contrib/google_analytics_reports/GAFeedv4.lib.inc
+index f74ed03..ae72148 100644
+--- a/sites/all/modules/contrib/google_analytics_reports/GAFeedv3.lib.inc
++++ b/sites/all/modules/contrib/google_analytics_reports/GAFeedv4.lib.inc
+@@ -15,10 +15,6 @@ class GAFeed {
+   const OAUTH2_TOKEN_URI = 'https://accounts.google.com/o/oauth2/token';
+   const OAUTH2_AUTH_URL = 'https://accounts.google.com/o/oauth2/auth';
+   const SCOPE = 'https://www.googleapis.com/auth/analytics.readonly https://www.google.com/analytics/feeds/';
+-//$this->setQueryPath('analytics/feeds/accounts/default');
+-//if ($this->query($this->queryPath, $params, 'GET', $this->generateAuthHeader(), $cache_options)) {
+-
+-//}
+ 
+   /* Response object */
+   public $response;
+@@ -27,7 +23,7 @@ class GAFeed {
+   public $results;
+ 
+   /* URL to Google Analytics Data Export API */
+-  public $queryPath;
++  public $queryPath = 'https://analyticsreporting.googleapis.com/v4/reports:batchGet';
+ 
+   /* Translated error message */
+   public $error;
+@@ -36,7 +32,7 @@ class GAFeed {
+   public $fromCache = FALSE;
+ 
+   /* Host and endpoint of Google Analytics API */
+-  protected $host = 'www.googleapis.com/analytics/v3';
++  protected $host = 'analyticsreporting.googleapis.com/v4/reports:batchGet';
+ 
+   /* OAuth access token */
+   public $access_token;
+@@ -240,12 +236,6 @@ class GAFeed {
+    * Public query method for all Data Export API features.
+    */
+   public function query($url, $params = array(), $method = 'GET', $headers, $cache_options = array()) {
+-    $params_defaults = array(
+-      'start-index' => 1,
+-      'max-results' => 1000,
+-    );
+-    $params += $params_defaults;
+-
+     /* Provide cache defaults if a developer did not override them */
+     $cache_defaults = array(
+       'cid' => NULL,
+@@ -267,7 +257,7 @@ class GAFeed {
+       $this->fromCache = TRUE;
+     }
+     else {
+-      $this->request($url, $params, $headers);
++      $this->request($url, $params, $headers, $method);
+     }
+ 
+     /* Do not cache erroneous queries */
+@@ -288,11 +278,10 @@ class GAFeed {
+         $url .= '?'. http_build_query($params, '', '&');
+       }
+       else {
+-        $data = http_build_query($params, '', '&');
++        $data = json_encode($params);
+       }
+     }
+ 
+-
+     $this->response = drupal_http_request($url, array('headers' => $headers, 'method' => $method, 'data' => $data));
+ 
+     if ($this->response->code == '200') {
+@@ -376,71 +365,64 @@ class GAFeed {
+     $params += array(
+       'profile_id' => 0,
+       'dimensions' => NULL,
+-      'metrics' => 'ga:visits',
++      'metrics' => NULL,
+       'sort_metric' => NULL,
+       'filters' => NULL,
+       'segment' => NULL,
+-      'start_date' => NULL,
+-      'end_date' => NULL,
++      'start_date' => '2005-01-01',
++      'end_date' => date('Y-m-d'),
+       'start_index' => 1,
+-      'max_results' => 10000,
++      'max_results' => '10000',
+     );
+ 
+-    $parameters = array('ids' => $params['profile_id']);
++    $parameters = array('viewId' => substr($params['profile_id'], 3));
+ 
+-    if (is_array($params['dimensions'])) {
+-      $parameters['dimensions'] = implode(',', $params['dimensions']);
+-    }
+-    elseif ($params['dimensions'] !== NULL) {
+-      $parameters['dimensions'] = $params['dimensions'];
++    if ($params['dimensions']) {
++      $parameters['dimensions'] = array_map(function ($item) {
++        return array('name' => $item);
++      }, (array)$params['dimensions']);
+     }
+ 
+-    if (is_array($params['metrics'])) {
+-      $parameters['metrics'] = implode(',', $params['metrics']);
+-    }
+-    else {
+-      $parameters['metrics'] = $params['metrics'];
++    if ($params['metrics']) {
++      $parameters['metrics'] = array_map(function ($item) {
++        return array('expression' => $item);
++      }, (array)$params['metrics']);
+     }
+ 
+-    if ($params['sort_metric'] == NULL && isset($parameters['metrics'])) {
+-      $parameters['sort'] = $parameters['metrics'];
+-    }
+-    elseif (is_array($params['sort_metric'])) {
+-      $parameters['sort'] = implode(',', $params['sort_metric']);
+-    }
+-    else {
+-      $parameters['sort'] = $params['sort_metric'];
++    if ($params['sort_metric']) {
++      $parameters['orderBys'] = array_map(function ($item) {
++        $field = ltrim($item, '-');
++        $order = substr($item, 0, 1) == '-' ? 'DESCENDING' : 'ASCENDING';
++
++        return array('fieldName' => $field, 'sortOrder' => $order);
++      }, (array)$params['sort_metric']);
+     }
+ 
+-    if (empty($params['start_date']) || !is_int($params['start_date'])) {
+-      /* Use the day that Google Analytics was released (1 Jan 2005) */
+-      $start_date = '2005-01-01';
++    if (is_int($params['start_date'])) {
++      $params['start_date'] = date('Y-m-d', $params['start_date']);
+     }
+-    elseif (is_int($params['start_date'])) {
+-      /* Assume a Unix timestamp */
+-      $start_date = date('Y-m-d', $params['start_date']);
++    if (is_int($params['end_date'])) {
++      $params['end_date'] = date('Y-m-d', $params['end_date']);
+     }
++    $parameters['dateRanges'] = array(array(
++      'startDate' => $params['start_date'],
++      'endDate' => $params['end_date'],
++    ));
+ 
+-    $parameters['start-date'] = $start_date;
+-
+-    if (empty($params['end_date']) || !is_int($params['end_date'])) {
+-      $end_date = date('Y-m-d');
+-    }
+-    elseif (is_int($params['end_date'])) {
+-      /* Assume a Unix timestamp */
+-      $end_date = date('Y-m-d', $params['end_date']);
++    if ($params['filters']) {
++      $parameters['filtersExpression'] = $params['filters'];
+     }
+ 
+-    $parameters['end-date'] = $end_date;
++    if ($params['max_results']) {
++      $parameters['pageToken'] = 'dummy';
++      $parameters['pageSize'] = $params['max_results'];
++    }
+ 
+-    /* Accept only strings, not arrays, for the following parameters */
+-    if (!empty($params['filters'])) $parameters['filters'] = $params['filters'];
+-    if (!empty($params['segment'])) $parameters['segment'] = $params['segment'];
+-    $parameters['start-index'] = $params['start_index'];
+-    $parameters['max-results'] = $params['max_results'];
++    $parameters = array(
++      'reportRequests' => array($parameters)
++    );
+ 
+-    $this->setQueryPath('data/ga');
+-    if ($this->query($this->queryPath, $parameters, 'GET', $this->generateAuthHeader(), $cache_options)) {
++    if ($this->query($this->queryPath, $parameters, 'POST', $this->generateAuthHeader(), $cache_options)) {
+       $this->sanitizeReport();
+     }
+     return $this;
+@@ -451,21 +433,40 @@ class GAFeed {
+    */
+   protected function sanitizeReport() {
+     /* Named keys for report values */
+-    $this->results->rawRows = $this->results->rows;
+-    $this->results->rows = array();
+-    foreach ($this->results->rawRows as $row_key => $row_value) {
++    // $this->results->rawRows = $this->results->rows;
++    // $this->results->rows = array();
++    $header = $this->results->reports[0]->columnHeader;
++    $rows = array();
++
++    foreach ($this->results->reports[0]->data->rows as $row_key => $row_value) {
+       foreach ($row_value as $item_key => $item_value) {
+-        $this->results->rows[$row_key][str_replace('ga:', '', $this->results->columnHeaders[$item_key]->name)] = $item_value;
++        if (isset($row_value->dimensions)) {
++          foreach ($row_value->dimensions as $key => $value) {
++            $key_label = substr($header->dimensions[$key], 3);
++
++            $rows[$row_key][$key_label] = $value;
++          }
++        }
++
++        if (isset($row_value->metrics[0]->values)) {
++          foreach ($row_value->metrics[0]->values as $key => $value) {
++            $key_label = substr($header->metricHeader->metricHeaderEntries[$key]->name, 3);
++
++            $rows[$row_key][$key_label] = $value;
++          }
++        }
+       }
+     }
+-    unset($this->results->rawRows);
++
++    $this->results->rows = $rows;
++    // unset($this->results->rawRows);
+ 
+     /* Named keys for report totals */
+-    $this->results->rawTotals = $this->results->totalsForAllResults;
+-    $this->results->totalsForAllResults = array();
+-    foreach ($this->results->rawTotals as $row_key => $row_value) {
+-      $this->results->totalsForAllResults[str_replace('ga:', '', $row_key)] = $row_value;
+-    }
+-    unset($this->results->rawTotals);
++    // $this->results->rawTotals = $this->results->totalsForAllResults;
++    // $this->results->totalsForAllResults = array();
++    // foreach ($this->results->rawTotals as $row_key => $row_value) {
++    //   $this->results->totalsForAllResults[str_replace('ga:', '', $row_key)] = $row_value;
++    // }
++    // unset($this->results->rawTotals);
+   }
+ }

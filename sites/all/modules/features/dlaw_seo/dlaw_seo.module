@@ -1,0 +1,480 @@
+<?php
+/**
+ * @file
+ * Code for the DLAW SEO feature.
+ */
+
+/**
+ * Implements hook_cron().
+ *
+ * sitemap.xml by xmlsitemap seems to get corrupted over time. This forces
+ * site map to be regenerated on a regular basis. Current minimum lifetime will
+ * run it once a day.
+ */
+function dlaw_seo_cron() {
+  $lifetime = REQUEST_TIME - variable_get('xmlsitemap_generated_last', 0);
+
+  if ($lifetime > 86400) {
+    variable_set('xmlsitemap_regenerate_needed', TRUE);
+  }
+}
+
+/**
+ * Implements hook_menu_alter().
+ *
+ * Hide redirect settings page.
+ */
+function dlaw_seo_menu_alter(&$items) {
+  // Hide by assigning a permission no roles (except user 1) are assigned to.
+  $items['admin/config/search/redirect/settings']['access arguments'] = array('administer site configuration');
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Hide 'Advanced options' in redirect edit page.
+ */
+function dlaw_seo_form_redirect_edit_form_alter(&$form, $form_state) {
+  // Hide by checking the permission assigned to no roles (except user 1).
+  if (!user_access('administer site configuration')) {
+    $form['advanced']['#access'] = FALSE;
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function dlaw_seo_form_alter(&$form, &$form_state, $form_id) {
+  if (in_array($form_id, array('page_node_form', 'contact_node_form'))) {
+    // Metatag permission is now enabled for manager role due to yoast_seo.
+    // Hide it back.
+    if (isset($form['metatags'])) {
+      $form['metatags']['#access'] = FALSE;
+    }
+
+    // Give weight to ensure it is added after yoast's js file.
+    drupal_add_js(drupal_get_path('module', 'dlaw_seo') . '/js/dlaw_seo.js', array('weight' => 10));
+  }
+}
+
+/**
+ * Implements hook_html_head_alter().
+ *
+ * Add better meta description using children topics or contents.
+ */
+function dlaw_seo_html_head_alter(&$head_elements) {
+  if (arg(0) == 'topics' and is_numeric(arg(1))) {
+    $char_count = 0;
+    $desc = array();
+
+    if ($terms = taxonomy_get_children(arg(1))) {
+      foreach ($terms as $term) {
+        if (count($desc) and ($char_count += strlen($term->name)) > 120) break;
+
+        $desc[] = $term->name;
+      }
+    }
+    elseif (function_exists('_dlaw_dashboard_get_nodes_by_tid')) {
+      $nodes = _dlaw_dashboard_get_nodes_by_tid(arg(1));
+      foreach ($nodes as $node) {
+        if (count($desc) and ($char_count += strlen($node->title)) > 120) break;
+
+        $desc[] = $node->title;
+      }
+    }
+
+    if (!empty($desc)) {
+      $head_elements['metatag_description_0']['#value'] = join(', ', $desc);
+    }
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function dlaw_seo_menu() {
+  $items['admin/dashboard/seo'] = array(
+    'title' => 'SEO',
+    'page callback' => 'dlaw_seo_report_page',
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 5,
+  );
+
+  $items['admin/dashboard/seo/report'] = array(
+    'title' => 'Report',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
+  );
+
+  // See dlaw5_linkchecker_menu() for menu at weight 1.
+
+  $items['admin/dashboard/seo/redirect'] = array(
+    'title' => 'URL Redirects',
+    'description' => 'DLAW Dashboard - URL Redirects',
+    'page callback' => 'dlaw_seo_redirect_url_redirect',
+    'access arguments' => array('administer dlaw settings'),
+    'weight' => 2,
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['admin/dashboard/seo/recent-searches'] = array(
+    'title' => 'Recent Searches',
+    'description' => 'DLAW Dashboard - Recent searches',
+    'page callback' => 'dlaw_seo_recent_search_page',
+    'access arguments' => array('administer dlaw settings'),
+    'weight' => 3,
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['admin/dashboard/seo/recent-searches/csv'] = array(
+    'title' => 'Download in CSV',
+    'page callback' => 'dlaw_seo_recent_search_csv',
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_ACTION,
+  );
+
+  $items['admin/dashboard/seo/top-searches'] = array(
+    'title' => 'Top Searches',
+    'description' => 'DLAW Dashboard - Top searches',
+    'page callback' => 'dlaw_seo_top_search_page',
+    'access arguments' => array('administer dlaw settings'),
+    'weight' => 4,
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['admin/dashboard/seo/top-searches/csv'] = array(
+    'title' => 'Download in CSV',
+    'page callback' => 'dlaw_seo_top_search_csv',
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_ACTION,
+  );
+
+  return $items;
+}
+
+/**
+ * Menu callback for 'admin/dashboard/seo/404checker'
+ *
+ * Does nothing but redirect. Exists to make menu item.
+ */
+function dlaw_seo_redirect_url_redirect() {
+  drupal_goto('admin/config/search/redirect');
+}
+
+/**
+ * Menu callback for 'admin/dashboard/seo/report'
+ */
+function dlaw_seo_report_page() {
+  $rows = array();
+  $index = 1;
+
+  /* Site name ****************************************************************/
+  $site_name = variable_get('site_name', '');
+  $site_name_length = strlen($site_name);
+
+  $status = ($site_name_length <= 60) ? 'Passed' : 'Needs work';
+
+  $rows[] = array(
+    'data' => array(
+      '&nbsp;' . ($index++) . '. ',
+      'Site Name',
+      "<strong>$status</strong>",
+      $site_name_length . ' characters',
+      'Between 50 to 60 characters',
+      l('Edit', 'admin/dashboard/appearance', array('query' => drupal_get_destination()))
+    ),
+    'class' => array($status == 'Passed' ? 'bg-success' : 'bg-warning'),
+    'no_striping' => TRUE,
+  );
+
+  /* Site slogan **************************************************************/
+  $site_slogan = variable_get('site_slogan', '');
+  $site_slogan_length = strlen($site_slogan);
+
+  $status = ($site_slogan_length >= 70 and $site_slogan_length <= 110)
+          ? 'Passed' : 'Needs work';
+
+  $rows[] = array(
+    'data' => array(
+      '&nbsp;' . ($index++) . '. ',
+      'Site Slogan',
+      "<strong>$status</strong>",
+      $site_slogan_length . ' characters',
+      'Between 70 to 110 characters',
+      l('Edit', 'admin/dashboard/appearance', array('query' => drupal_get_destination()))
+    ),
+    'class' => array($status == 'Passed' ? 'bg-success' : 'bg-warning'),
+    'no_striping' => TRUE,
+  );
+
+  /* Twitter account **********************************************************/
+  $twitter = variable_get('dlaw_social_media_links_twitter_url', '');
+
+  $status = $twitter ? 'Passed' : 'Needs work';
+
+  $rows[] = array(
+    'data' => array(
+      '&nbsp;' . ($index++) . '. ',
+      'Twitter Account',
+      "<strong>$status</strong>",
+      $twitter ? 'Linked' : 'Not set',
+      'Create and add Twitter account',
+      l('Edit', 'admin/dashboard/settings/social-media', array('query' => drupal_get_destination()))
+    ),
+    'class' => array($status == 'Passed' ? 'bg-success' : 'bg-warning'),
+    'no_striping' => TRUE,
+  );
+
+  /* Facebook page ************************************************************/
+  $facebook = variable_get('dlaw_social_media_links_facebook_url', '');
+
+  $status = $facebook ? 'Passed' : 'Needs work';
+
+  $rows[] = array(
+    'data' => array(
+      '&nbsp;' . ($index++) . '. ',
+      'Facebook Page',
+      "<strong>$status</strong>",
+      $facebook ? 'Linked' : 'Not set',
+      'Create and add Facebook page',
+      l('Edit', 'admin/dashboard/settings/social-media', array('query' => drupal_get_destination()))
+    ),
+    'class' => array($status == 'Passed' ? 'bg-success' : 'bg-warning'),
+    'no_striping' => TRUE,
+  );
+
+  /* Last Updated *************************************************************/
+  $time = db_query("SELECT MAX(changed) FROM node WHERE status = 1 AND type = 'page'")
+    ->fetchField();
+  $days_old = round((REQUEST_TIME - $time)/86400);
+
+  $status = ($days_old <= 90) ? 'Passed' : 'Needs work';
+
+  $rows[] = array(
+    'data' => array(
+      '&nbsp;' . ($index++) . '. ',
+      'Last Updated',
+      "<strong>$status</strong>",
+      "Latest page is $days_old days old",
+      'Update website at least every 90 days',
+      l('Check', 'admin/dashboard/content', array('query' => drupal_get_destination()))
+    ),
+    'class' => array($status == 'Passed' ? 'bg-success' : 'bg-warning'),
+    'no_striping' => TRUE,
+  );
+
+  /* Link checker *************************************************************/
+  // Get count of links to check. Code borrowed from dlaw5_linkchecker_report_page().
+  $ignore_response_codes = preg_split('/(\r\n?|\n)/', variable_get('linkchecker_ignore_response_codes', "200\n206\n302\n304\n401\n403"));
+
+  $subquery = db_select('linkchecker_node', 'ln')
+    ->distinct()
+    ->fields('ln', array('lid'));
+
+  $query = db_select('linkchecker_link', 'll')->extend('PagerDefault');
+  $query->innerJoin($subquery, 'q2', 'q2.lid = ll.lid');
+  $query->fields('ll');
+  $query->condition('ll.last_checked', 0, '<>');
+  $query->condition('ll.status', 1);
+  $query->condition('ll.code', $ignore_response_codes, 'NOT IN');
+
+  $count = $query->countQuery()->execute()->fetchField();
+
+  if ($count == 0) {
+    $status = 'Passed';
+
+    $result = 'No pages with broken external links';
+  }
+  else {
+    $status = 'Review';
+
+    $count = ($count < 10 ? ''    :
+             ($count < 20 ? '10+' :
+             ($count < 30 ? '20+' :
+             ($count < 40 ? '30+' : '40+'))));
+
+    $result = "Pages have $count broken links";
+  }
+
+
+  $rows[] = array(
+    'data' => array(
+      '&nbsp;' . ($index++) . '. ',
+      'Broken External Link Check',
+      "<strong>$status</strong>",
+      $result,
+      'Fix broken links',
+      l('Check', 'admin/dashboard/seo/linkchecker')
+    ),
+    'class' => array($status == 'Passed' ? 'bg-success' : 'bg-warning'),
+    'no_striping' => TRUE,
+  );
+
+  /* 404 Checker **************************************************************/
+  /*$status = 'Review'; // As 404 list would never be empty.
+
+  $rows[] = array(
+    'data' => array(
+      '&nbsp;' . ($index++) . '. ',
+      'Page Not Found (404) Check',
+      "<strong>$status</strong>",
+      "Users trying to reach pages that don't exist",
+      'Add redirect for legacy URLs if needed',
+      l('Check', 'admin/config/search/redirect/404')
+    ),
+    'no_striping' => TRUE,
+  );*/
+
+  $header = array('', 'Checkpoint', 'Status', 'Result', 'Recommendation', '');
+
+  return theme('table', array('header' => $header, 'rows' => $rows));
+}
+
+/**
+ * Menu callback for 'admin/dashboard/seo/recent-searches'
+ *
+ * @see code copied from dblog_top().
+ */
+function dlaw_seo_recent_search_page() {
+  $type = 'search';
+
+  $header = array('Date', 'Time', 'IP', 'Search Keywords');
+
+  $query = db_select('watchdog', 'w')->extend('PagerDefault');
+  $query = $query
+    ->fields('w', array('message', 'variables', 'timestamp', 'hostname'))
+    ->condition('w.type', 'search')
+    ->condition('w.variables', 'a:1:{s:5:"%keys";N;}', '<>')
+    ->limit(200)
+    ->orderBy('wid', 'desc');
+  $result = $query->execute();
+
+  $rows = array();
+  $prev_date = '';
+  foreach ($result as $log) {
+    $date = date('M j, Y', $log->timestamp);
+    if ($prev_date == $date) {
+      $date = '';
+    }
+    else {
+      $prev_date = $date;
+    }
+
+    $time = date('g:ia', $log->timestamp);
+    $rows[] = array($date, $time, $log->hostname, theme('dblog_message', array('event' => $log)));
+  }
+
+  $build['dblog_top_table']  = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => t('No search history available.'),
+  );
+  $build['dblog_top_pager'] = array('#theme' => 'pager');
+
+  return $build;
+}
+
+/**
+ * Menu callback for 'admin/dashboard/seo/recent-searches/csv'
+ */
+function dlaw_seo_recent_search_csv() {
+  header('Content-Type: text/csv');
+  header('Content-Disposition: attachment;filename=recent-searches-' . date('Ymd-His') . '.csv');
+  $out = fopen('php://output', 'w');
+
+  // Header
+  fputcsv($out, array('Date', 'Time', 'IP', 'Search Keywords'));
+
+  $query = db_select('watchdog', 'w')->extend('PagerDefault');
+  $query->fields('w', array('message', 'variables', 'timestamp', 'hostname'))
+    ->condition('w.type', 'search')
+    ->condition('w.variables', 'a:1:{s:5:"%keys";N;}', '<>')
+    ->limit(10000)
+    ->orderBy('wid', 'desc');
+  $result = $query->execute();
+
+  // Rows
+  foreach ($result as $log) {
+    $date = date('Y-m-d', $log->timestamp);
+    $time = date('g:ia', $log->timestamp);
+    $keywords = theme('dblog_message', array('event' => $log));
+
+    fputcsv($out, array($date, $time, $log->hostname, strip_tags($keywords)));
+  }
+
+  fclose($out);
+}
+
+/**
+ * Menu callback for 'admin/dashboard/seo/top-searches'
+ *
+ * @see code copied from dblog_top().
+ */
+function dlaw_seo_top_search_page() {
+  $header = array('Count', 'Search Keywords');
+
+  $count_query = db_select('watchdog');
+  $count_query->addExpression('COUNT(DISTINCT(message))');
+  $count_query->condition('type', 'search');
+
+  $query = db_select('watchdog', 'w')->extend('PagerDefault')->extend('TableSort');
+  $query->addExpression('COUNT(wid)', 'count');
+  $query = $query
+    ->fields('w', array('message', 'variables'))
+    ->condition('w.type', 'search')
+    ->condition('w.timestamp', REQUEST_TIME - 86400*30, '>')
+    ->groupBy('message')
+    ->groupBy('variables')
+    ->limit(30)
+    ->orderBy('count', 'desc');
+  $query->setCountQuery($count_query);
+  $result = $query->execute();
+
+  $rows = array();
+  foreach ($result as $log) {
+    $rows[] = array($log->count, theme('dblog_message', array('event' => $log)));
+  }
+
+  $build['dblog_top_table']  = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#caption' => '<h2 style="font-size: 1.5em; font-style: normal; text-align: left;">Top Search Keywords in the Last 30 Days</h2>',
+    '#empty' => t('No search history in the last 30 days.'),
+  );
+  $build['dblog_top_pager'] = array('#theme' => 'pager');
+
+  return $build;
+}
+
+/**
+ * Menu callback for 'admin/dashboard/seo/top-searches/csv'
+ */
+function dlaw_seo_top_search_csv() {
+  header('Content-Type: text/csv');
+  header('Content-Disposition: attachment;filename=top-searches-' . date('Ymd-His') . '.csv');
+  $out = fopen('php://output', 'w');
+
+  // Header
+  fputcsv($out, array('Count', 'Search Keywords'));
+
+  $query = db_select('watchdog', 'w')->extend('PagerDefault');
+  $query->addExpression('COUNT(wid)', 'count');
+  $query->fields('w', array('message', 'variables'))
+    ->condition('w.type', 'search')
+    ->condition('w.timestamp', REQUEST_TIME - 86400*30, '>')
+    ->groupBy('message')
+    ->groupBy('variables')
+    ->limit(30)
+    ->orderBy('count', 'desc');
+  $result = $query->execute();
+
+  // Rows
+  foreach ($result as $log) {
+    fputcsv($out, array($log->count, strip_tags(theme('dblog_message', array('event' => $log)))));
+  }
+
+  fclose($out);
+}

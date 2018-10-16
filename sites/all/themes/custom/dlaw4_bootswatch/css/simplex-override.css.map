@@ -1,0 +1,7 @@
+{
+"version": 3,
+"mappings": "AAEA,aAAa;EACX,KAAK,EAAE,OAAO;;AAGhB,2FAA2F;EACzF,KAAK,EAAE,OAAO;;AAGhB,IAAI;EACF,KAAK,EAAE,OAAO;;AAGhB,WAAW;EACT,UAAU,EAAE,IAAI;;AAElB,yCAAyC;EACvC,KAAK,EAAE,kBAAkB;;AAIzB,sDAAU;EACR,WAAW,EAAE,iBAAiB;EAC9B,KAAK,EAAE,OAAO;;AAIlB,0BAA0B;EACzB,gBAAgB,EAAE,6CAA6C;;AAEhE,SAAS;EACP,KAAK,EAAE,OAAuB",
+"sources": ["../sass/simplex-override.scss"],
+"names": [],
+"file": "simplex-override.css"
+}

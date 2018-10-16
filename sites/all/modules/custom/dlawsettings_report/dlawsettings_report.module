@@ -1,0 +1,79 @@
+<?php
+
+/**
+ * @file
+ * DLAW Report.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function dlawsettings_report_menu() {
+  $items['admin/dashboard/settings/report'] = array(
+    'title' => 'Report',
+    'page callback' => 'dlawsettings_report_page',
+    // 'page arguments' => array('dlawsettings_report_form'),
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 10,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function dlawsettings_report_theme($existing, $type, $theme, $path) {
+  return array(
+    'dlawsettings_report' => array(
+      'variables' => array('form' => array(), 'vars' => array()),
+      'template' => 'dlawsettings_report',
+    ),
+  );
+}
+
+/**
+ * Callback for menu admin/dashboard/settings/report.
+ */
+function dlawsettings_report_page() {
+  $vars = array(
+    'page_views' => 'AAA',
+    'visits' => 'BBB',
+    'visitors' => 'CCC',
+    'page_per_visit' => 'DDD',
+  );
+
+  $output = array(
+    '#theme' => 'dlawsettings_report', 
+    '#form' => drupal_get_form('dlawsettings_report_form'),
+    '#vars' => $vars,
+  );
+
+  return $output;
+}
+
+function dlawsettings_report_form() {
+  $form = array();
+
+  $form['from_date'] = array(
+    '#type' => 'date_popup',
+    // '#title' => t('From'),
+  );
+
+  $form['to_date'] = array(
+    '#type' => 'date_popup',
+    // '#title' => t('To'),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+
+  return $form;
+}
+
+function dlawsettings_report_form_submit($form, $form_state) {
+
+}

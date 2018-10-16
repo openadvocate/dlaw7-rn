@@ -1,0 +1,6 @@
+name = Carousel
+description = Front page slideshow.
+core = 7.x
+package = DLAW
+version = 7.x-0.1
+scripts[] = includes/js/slide-counter.js

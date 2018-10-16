@@ -1,0 +1,6 @@
+name = Zip Code Validate (for Select or Add)
+description = Validates user input Zip codes.
+core = 7.x
+package = DLAW
+version = "7.x-0.1"
+dependencies[] = selectoradd

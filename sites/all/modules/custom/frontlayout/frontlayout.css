@@ -1,0 +1,448 @@
+/**
+ * @file
+ * Stylesheet for the frontlayout module.
+ */
+/* line 9, frontlayout.scss */
+#frontlayout div#frontlayout_footer {
+  margin: 0 auto 1em;
+  float: none;
+  clear: both;
+}
+
+/* line 16, frontlayout.scss */
+#frontlayout div.block {
+  margin-bottom: 20px;
+}
+
+/* line 20, frontlayout.scss */
+#frontlayout .frontlayout-region .block {
+  clear: both;
+}
+
+/* line 24, frontlayout.scss */
+#frontlayout div.block h2 {
+  float: none;
+}
+
+/* line 39, frontlayout.scss */
+#frontlayout .frontlayout-add-other-blocks {
+  margin: 10px 0 20px 0;
+}
+
+/* line 43, frontlayout.scss */
+#frontlayout .ui-sortable {
+  border: 2px dashed #ccc;
+  padding: 10px;
+}
+/* line 47, frontlayout.scss */
+#frontlayout .ui-sortable .badge {
+  display: none;
+}
+/* line 51, frontlayout.scss */
+#frontlayout .ui-sortable .panel-heading:before {
+  color: #aaa;
+  content: "⠿";
+  display: block;
+  float: left;
+  font-size: 23px;
+  height: 27px;
+  line-height: 27px;
+  margin: 0 10px 0 0;
+  padding-top: 0;
+  width: 16px;
+}
+/* line 64, frontlayout.scss */
+#frontlayout .ui-sortable .panel-heading:hover:before {
+  color: #2fa6e5;
+}
+
+/* line 73, frontlayout.scss */
+.manage-sites-button .badge {
+  font-weight: normal;
+  margin-left: 10px;
+  text-shadow: 1px 1px #888;
+}
+
+/* line 83, frontlayout.scss */
+#frontlayout #disabled-blocks .ui-sortable {
+  border: 0;
+}
+
+/* line 87, frontlayout.scss */
+#frontlayout .canvas-content a.button {
+  text-decoration: none;
+}
+
+/* line 91, frontlayout.scss */
+#frontlayout .region {
+  margin: 5px;
+}
+
+/* line 95, frontlayout.scss */
+#frontlayout #disabled-blocks .region {
+  background-color: #E0E0D8;
+  border: #ccc 1px solid;
+  padding: 10px;
+}
+
+/* line 101, frontlayout.scss */
+#frontlayout #disabled-blocks {
+  padding: 5px 0;
+}
+
+/* line 105, frontlayout.scss */
+#frontlayout #disabled-blocks h2 {
+  display: inline;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+/* line 116, frontlayout.scss */
+#frontlayout #disabled-blocks .block .content,
+#frontlayout .ui-sortable-helper .content {
+  display: none;
+}
+
+/* line 120, frontlayout.scss */
+#frontlayout .ui-sortable .block {
+  cursor: move;
+  min-height: 1px;
+}
+
+/* line 125, frontlayout.scss */
+#frontlayout .ui-sortable .block h2 {
+  background: transparent url(../../misc/draggable.png) no-repeat 0px -39px;
+  padding: 4px 8px;
+}
+
+/* line 138, frontlayout.scss */
+#frontlayout .frontlayout-region .block-placeholder {
+  margin: 0 0 20px 0;
+  padding: 0;
+  display: block;
+  height: 1.6em;
+  width: 100%;
+}
+
+/* line 146, frontlayout.scss */
+#frontlayout #disabled-blocks .block-placeholder {
+  width: 30px;
+  height: 1.6em;
+}
+
+/* Copied from Ember style.css */
+/* line 154, frontlayout.scss */
+#frontlayout .region {
+  margin: 0;
+}
+
+/* line 157, frontlayout.scss */
+#frontlayout div.block h2 {
+  font-size: 2em;
+  margin: 0;
+  padding: 4px 8px;
+}
+
+/* line 162, frontlayout.scss */
+#frontlayout div.block div.content {
+  /* LTR */
+}
+
+/* line 165, frontlayout.scss */
+#frontlayout div.block div.content ul.menu {
+  margin-left: 20px;
+  /* LTR */
+}
+
+/* line 169, frontlayout.scss */
+#frontlayout .frontlayout-region .block {
+  border: 1px solid #ddd;
+}
+
+/* line 174, frontlayout.scss */
+#frontlayout div#frontlayout_col3 {
+  margin-right: 0;
+}
+
+/* line 177, frontlayout.scss */
+#frontlayout .canvas-content a.button {
+  text-decoration: none;
+}
+
+/* Custom */
+/* line 195, frontlayout.scss */
+#frontlayout div.frontlayout-region .placeholder {
+  padding: 1em;
+}
+
+/* line 200, frontlayout.scss */
+#frontlayout.customize-mode div.frontlayout-region .placeholder {
+  border: none;
+}
+
+/* line 205, frontlayout.scss */
+#frontlayout .disabled-blocks {
+  min-height: 4em;
+}
+
+/* line 209, frontlayout.scss */
+.slideshow {
+  margin: 1em 0;
+  padding: 1em 0;
+  text-align: center;
+}
+
+/* line 216, frontlayout.scss */
+.slideshow .ss-block {
+  /*height: 50px;*/
+  width: 20%;
+  margin: 0 1em 1em;
+  display: inline-block;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* line 229, frontlayout.scss */
+.slideshow .ss-block .cell {
+  text-align: center;
+  padding: 2em 3em;
+}
+
+/* line 235, frontlayout.scss */
+#frontlayout .frontlayout-region .block .content > * {
+  display: none;
+}
+
+/* line 239, frontlayout.scss */
+#frontlayout .frontlayout-region .block .content div.no-content {
+  display: block;
+}
+
+/* line 247, frontlayout.scss */
+.slideshow {
+  padding: 0;
+  margin-bottom: 14px;
+}
+/* line 250, frontlayout.scss */
+.slideshow .slideshow-inner {
+  padding-top: 20px;
+  padding-bottom: 20px;
+  border: 1px solid #DDDDDD;
+}
+
+/* line 257, frontlayout.scss */
+#frontlayout .action-links1 {
+  list-style-type: none;
+  padding: 0 0 15px 35px;
+  margin: 0;
+}
+
+/* line 264, frontlayout.scss */
+.add-block-holder {
+  margin-bottom: 20px;
+}
+
+/* line 270, frontlayout.scss */
+.customize-inactive #frontlayout_inactive .inactive-label {
+  display: none;
+}
+
+/* line 276, frontlayout.scss */
+#frontlayout {
+  padding-bottom: 145px;
+}
+/* line 280, frontlayout.scss */
+#frontlayout .action-links {
+  padding-bottom: 0;
+  margin-bottom: 20px;
+}
+/* line 285, frontlayout.scss */
+#frontlayout .region-instruction {
+  border: 1px solid #ddd;
+  background-color: #ffd;
+  padding: 20px;
+  margin: 1em 0;
+  text-align: center;
+}
+/* line 293, frontlayout.scss */
+#frontlayout .region {
+  border: 1px solid #DDDDDD;
+  min-height: 150px;
+  padding: 20px;
+  background: none repeat scroll 0 0 #fafafa;
+}
+/* line 300, frontlayout.scss */
+#frontlayout .region.inactive-zone {
+  background: rgba(255, 255, 255, 0.6);
+}
+/* line 303, frontlayout.scss */
+#frontlayout .region.inactive-zone .placeholder {
+  color: #BBBBBB;
+  font-size: 19px;
+  text-align: center;
+}
+/* line 313, frontlayout.scss */
+#frontlayout #frontlayout_inactive .region {
+  background-color: rgba(255, 255, 221, 0.7);
+}
+/* line 316, frontlayout.scss */
+#frontlayout #frontlayout_inactive .ui-sortable {
+  display: none;
+}
+/* line 323, frontlayout.scss */
+#frontlayout #frontlayout_col1,
+#frontlayout #frontlayout_col2,
+#frontlayout #frontlayout_col3 {
+  margin-top: 25px;
+  margin-bottom: 25px;
+}
+/* line 329, frontlayout.scss */
+#frontlayout #frontlayout_footer .region {
+  min-height: 130px;
+}
+/* line 335, frontlayout.scss */
+#frontlayout #disabled-blocks .region {
+  background-color: #eee;
+  border: 2px dashed #aaa;
+}
+/* line 341, frontlayout.scss */
+#frontlayout .ui-sortable {
+  padding: 20px;
+  background-color: rgba(238, 255, 238, 0.9);
+  border: 2px dashed #AAAAAA;
+}
+/* line 354, frontlayout.scss */
+#frontlayout div.block h4, #frontlayout div.block h2 {
+  color: #5a5a5a;
+  font-weight: normal;
+  font-size: 16px;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+/* line 360, frontlayout.scss */
+#frontlayout div.block h4:hover, #frontlayout div.block h2:hover {
+  color: #5a5a5a;
+}
+/* line 366, frontlayout.scss */
+#frontlayout div.block:hover h4, #frontlayout div.block:hover h2 {
+  color: #5a5a5a;
+}
+/* line 372, frontlayout.scss */
+#frontlayout .block.panel-default {
+  clear: none;
+  min-height: 42px;
+  background: none repeat scroll 0 0 #fff;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+  border-radius: 0;
+}
+/* line 381, frontlayout.scss */
+#frontlayout .block.panel-default .panel-heading {
+  border-radius: 0;
+  background: none;
+  border: none;
+}
+/* line 386, frontlayout.scss */
+#frontlayout .block.panel-default .panel-heading .badge {
+  font-weight: normal;
+}
+/* line 388, frontlayout.scss */
+#frontlayout .block.panel-default .panel-heading .badge:hover {
+  background: #2fa6e5;
+}
+/* line 399, frontlayout.scss */
+#frontlayout #frontlayout_inactive .block.panel-default {
+  float: left;
+  clear: none;
+  margin-right: 15px;
+  margin-bottom: 20px;
+  background: none repeat scroll 0 0 #fff;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+  border-radius: 0;
+}
+/* line 410, frontlayout.scss */
+#frontlayout #frontlayout_inactive .block.panel-default .panel-heading {
+  border-radius: 0;
+  background: none;
+  border: none;
+}
+/* line 419, frontlayout.scss */
+#frontlayout #disabled-blocks .disabled-blocks {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+/* line 423, frontlayout.scss */
+#frontlayout #disabled-blocks .disabled-blocks.region.disabled-blocks {
+  background: rgba(255, 255, 221, 0.7);
+}
+/* line 425, frontlayout.scss */
+#frontlayout #disabled-blocks .disabled-blocks.region.disabled-blocks .panel.panel-default {
+  min-width: 250px;
+  float: left;
+  margin: 0 10px 20px 0;
+  min-height: 42px;
+  background: none repeat scroll 0 0 #fff;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+/* line 456, frontlayout.scss */
+#frontlayout a.button {
+  border: medium none;
+  border-radius: 2px;
+  cursor: pointer;
+  display: inline-block;
+  font-family: "Helvetica Neue",helvetica,"Segoe UI",segoe,"Ubuntu","Droid Sans","Arial",sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  line-height: 1em;
+  max-width: 100%;
+  outline: medium none;
+  overflow: visible;
+  text-align: center;
+  text-decoration: none;
+  vertical-align: baseline;
+  text-shadow: 0 1px 0 #EFEFEF;
+  font-size: 14px;
+  padding: 10px 14px;
+  -moz-box-sizing: border-box;
+  cursor: pointer;
+  max-width: 100%;
+  color: #FFFFFF;
+  background: none repeat scroll 0 0 #2FA6E5;
+  text-shadow: 0 1px 0 #0E3144;
+}
+
+/* line 485, frontlayout.scss */
+a.done-button {
+  margin-left: 42px;
+}
+
+/* line 489, frontlayout.scss */
+.action-links-holder {
+  height: 61px;
+}
+/* line 491, frontlayout.scss */
+.action-links-holder:after {
+  clear: both;
+  display: table;
+  content: "";
+}
+
+/* line 498, frontlayout.scss */
+#frontlayout .block-edit {
+  float: right;
+  color: green;
+  font-weight: bold;
+  font-size: 12px;
+  line-height: 0.75;
+  margin-left: 0.5em;
+  padding: 0 0.5em;
+}
+/* line 507, frontlayout.scss */
+#frontlayout .block-edit:active, #frontlayout .block-edit:hover {
+  text-decoration: none;
+  color: red;
+}

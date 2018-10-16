@@ -1,0 +1,37 @@
+<?php
+/**
+ * @file
+ * Code for the Page Content Type feature.
+ */
+
+include_once 'page_content_type.features.inc';
+
+/**
+ * Implements hook_form_FORM_ID_alter();
+ */
+function page_content_type_form_page_node_form_alter($form, $form_state) {
+  drupal_add_js(drupal_get_path('module', 'page_content_type') . '/js/page_content_type.js');
+}
+
+/**
+ * Implements hook_field_widget_WIDGET_TYPE_form_alter().
+ *
+ * Disable wysiwyg on body summary.
+ */
+function page_content_type_field_widget_text_textarea_with_summary_form_alter(&$element, &$form_state, $context) {
+  if ($element['#bundle'] == 'page' and $element['#field_name'] == 'body') {
+    $element['summary']['#wysiwyg'] = FALSE;
+  }
+}
+
+/**
+ * Implements hook_node_update().
+ *
+ * Case 50686.
+ */
+function page_content_type_node_update($node) {
+  // Check if same redirect exists as alias and remove it to avoid infinite loop.
+  if (isset($node->path) and $redirect = redirect_load_by_source($node->path['alias'])) {
+    redirect_delete($redirect->rid);
+  }
+}

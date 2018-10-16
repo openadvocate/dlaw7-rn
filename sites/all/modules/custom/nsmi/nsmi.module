@@ -1,0 +1,307 @@
+<?php
+
+/**
+ * @file
+ * Enables category based on NSMI.
+ */
+
+define('NSMI_VOCAB_NAME', 'Topics');
+define('NSMI_VOCAB_CODE', 'category');
+
+/**
+ * Implements of hook_permission().
+ */
+function nsmi_permission() {
+  return array(
+    'administer nsmi' => array(
+      'title' => t('Administer NSMI'),
+      'description' => t('Perform administration tasks to use NSMI for library.'),
+    ),
+  );
+}
+
+/**
+ * Implements of hook_menu().
+ */
+function nsmi_menu() {
+  $items['admin/dashboard/settings/nsmi'] = array(
+    'title' => 'NSMI',
+    'description' => 'Import NSMI.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('nsmi_convert_form'),
+    'access arguments' => array('administer nsmi'),
+    'weight' => 3,
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  return $items;
+}
+
+function nsmi_convert_form() {
+  drupal_add_js(drupal_get_path('module', 'nsmi') .'/nsmi.js');
+
+  $index    = !empty($_GET['nsmi_idx']) ? $_GET['nsmi_idx'] : 1;
+  $heading1 = nsmi_get_nsmi_h1($index);
+
+  $form['instrucion'] = array(
+    '#type'   => 'item',
+    '#title'  => t('Add NSMI terms'),
+    '#markup' => 'Selected terms will be added in the taxonomy '. l(NSMI_VOCAB_NAME, 'admin/structure/taxonomy/' . NSMI_VOCAB_CODE) . '.',
+  );
+
+  $form['select_section'] = array(
+    '#type' => 'select',
+    '#options'    => nsmi_get_nsmi_h1(),
+    '#default_value' => $index,
+    '#attributes' => array(
+      'onchange'  => "self.location.href='?nsmi_idx='+this.value"
+    ),
+  );
+
+  $form['submit'] = array(
+    '#type'   => 'submit',
+    '#value'  => t('Update Categories'),
+    '#submit' => array('nsmi_convert_form_submit'),
+  );
+
+  $header = array(
+    'heading1' => array('data' => t('Heading&nbsp;1')),
+    'heading2' => array('data' => t('Heading&nbsp;2')),
+    'heading3' => array('data' => t('Heading&nbsp;3')),
+    'heading4' => array('data' => t('Heading&nbsp;4')),
+  );
+
+  $rows = db_query("
+    SELECT n.pkey,
+      n.top_heading AS heading1,
+      n.l2_heading AS heading2,
+      n.l3_heading AS heading3,
+      n.l4_heading AS heading4,
+      n.tid,
+      n1.pkey AS parentkey
+    FROM nsmi n
+      LEFT JOIN nsmi n1 ON n.pkey != n1.pkey
+      AND n.top_heading = n1.top_heading
+      AND
+      (
+        (
+          COALESCE(n.l3_heading, n.l4_heading, n1.l2_heading, n1.l3_heading, n1.l4_heading) IS NULL
+          AND n.l2_heading IS NOT NULL
+        )
+        OR
+        (
+          n.l2_heading = n1.l2_heading
+          AND COALESCE(n.l4_heading, n1.l3_heading, n1.l4_heading) IS NULL
+          AND n.l3_heading IS NOT NULL
+        )
+        OR
+        (
+          n.l2_heading = n1.l2_heading
+          AND n.l3_heading = n1.l3_heading
+          AND n1.l4_heading IS NULL
+          AND n.l4_heading IS NOT NULL
+        )
+      )
+    WHERE n.top_heading = :heading1
+    ORDER BY n.top_heading, n.l2_heading, n.l3_heading, n.l4_heading",
+    array(':heading1' => $heading1)
+  );
+
+  $options = $ancestry = $default_value = array();
+  foreach($rows as $row) {
+    $ancestry[$row->pkey] = (string)$row->parentkey;
+
+    $lineage = nsmi_get_lineage($row->pkey, $ancestry, '-uilg-');
+
+    if ($row->tid) {
+      $lineage[] = 'selected';
+      $default_value[$row->pkey] = 1;
+    }
+
+    $options[$row->pkey] = array(
+      '#attributes' => array('class' => $lineage, 'id' => "-uilg-$row->pkey"),
+      'heading1' => check_plain($row->heading1),
+      'heading2' => check_plain($row->heading2),
+      'heading3' => check_plain($row->heading3),
+      'heading4' => check_plain($row->heading4),
+    );
+  }
+
+  $form['nsmi_convert'] = array(
+    '#type' => 'tableselect',
+    '#header' => $header,
+    '#options' => $options,
+    '#default_value' => $default_value,
+    '#empty' => t('No content available.'),
+    '#js_select' => FALSE,
+    '#attributes' => array('id' => 'nsmi-convert-table'),
+  );
+
+  return $form;
+}
+
+function nsmi_convert_form_submit($form, &$form_state) {
+  $checked = array_filter($form_state['values']['nsmi_convert']);
+  $terms   = nsmi_get_nsmi_tree($checked);
+
+  $index = !empty($_GET['nsmi_idx']) ? $_GET['nsmi_idx'] : 1;
+  nsmi_taxonomy_import($terms, $index);
+
+  drupal_goto($_GET['q'], array('query' => array(
+              'nsmi_idx' => !empty($_GET['nsmi_idx']) ? $_GET['nsmi_idx'] : ''))
+              );
+}
+
+function nsmi_get_nsmi_tree($checked) {
+  if (empty($checked)) {
+    return array();
+  }
+  $vocab  = taxonomy_vocabulary_machine_name_load(NSMI_VOCAB_CODE);
+  $vid    = $vocab->vid;
+  $terms  = array();
+  $parent = array(0);
+  $tid    = -1; // Grow negative to make sure it does not conflict with real tid's
+  $prev_depth = $depth = 0;
+
+  $result = db_query("SELECT * FROM nsmi WHERE pkey IN (:checked) ORDER BY top_heading, l2_heading, l3_heading, l4_heading", array(':checked' => $checked));
+
+  foreach ($result as $row) {
+    $depth = nsmi_get_depth($row);
+    if ($prev_depth < $depth) {
+      $parent[] = $prev_tid;
+    }
+    elseif ($prev_depth > $depth) {
+      for ($i = 0; $i < $prev_depth - $depth; $i++) {
+        array_pop($parent);
+      }
+    }
+    if ($row->tid > 0) {
+      $t = taxonomy_term_load($row->tid);
+      $name = $t->name;
+    }
+    else {
+      $name = nsmi_get_term_name($row);
+    }
+
+    $term = (object) array(
+      'pkey'   => $row->pkey,
+      'tid'    => $row->tid ? $row->tid : $tid,
+      'vid'    => $vid,
+      'name'   => $name,
+      'depth'  => $depth,
+      'parent' => $parent[count($parent) - 1],
+      'field_unique_id' => array('und' => array(array('value' => $row->problem_code))),
+    );
+
+    $terms[] = $term;
+
+    $prev_depth = $depth;
+    $prev_tid = $row->tid ? $row->tid : $tid--;
+  }
+
+  return $terms;
+}
+
+function nsmi_taxonomy_import($terms, $nsmi_idx = NULL) {
+  $top_heading = nsmi_get_nsmi_h1($nsmi_idx);
+
+  // Save the list to clean up later.
+  $result = db_query("SELECT tid FROM {nsmi} WHERE tid > 0 AND top_heading = :top_heading", array(':top_heading' => $top_heading));
+  foreach ($result as $row) {
+    $tids_before[$row->tid] = $row->tid;
+  }
+
+  db_update('nsmi')
+    ->condition('top_heading', $top_heading)
+    ->fields(array('tid' => NULL))
+    ->execute();
+
+  // Parent map keeps track of existing tid hierarchy.
+  $parent_tid_map = array();
+
+  foreach ($terms as $key => &$term) {
+    $parent_tid_map[$term->tid] = $key;
+
+    // Reset negative tid so taxonomy_term_save can assign real tid.
+    $term->tid = $term->tid > 0 ? $term->tid : NULL;
+
+    if ($term->parent) {
+      $term->parent = $terms[$parent_tid_map[$term->parent]]->tid;
+    }
+
+    taxonomy_term_save($term);
+    nsmi_update_nsmi($term);
+    if (isset($tids_before[$term->tid])) {
+      unset($tids_before[$term->tid]);
+    }
+  }
+
+  // Clean up left over tids
+  if (!empty($tids_before)) {
+    foreach ($tids_before as $tid) {
+      taxonomy_term_delete($tid);
+    }
+  }
+
+  drupal_set_message(t("%num terms added successfully.", array('%num' => count($parent_tid_map))));
+}
+
+function nsmi_get_lineage($key, $ancestry, $prefix = '') {
+  $lineage = array($prefix . $key);
+
+  while ($parent_key = $ancestry[$key]) {
+    $lineage[] = $prefix . $parent_key;
+
+    $key = $parent_key;
+  }
+
+  return $lineage;
+}
+
+function nsmi_get_nsmi_h1($index = 0) {
+  $cache = cache_get('nsmi_h1_indexes');
+
+  if (!empty($cache->data)) {
+      $headings = $cache->data;
+  }
+  else {
+    $headings = array();
+    $idx = 1;
+
+    $result = db_query("SELECT DISTINCT top_heading FROM {nsmi} ORDER BY top_heading");
+
+    foreach ($result as $row) {
+      $headings[$idx++] = $row->top_heading;
+    }
+
+    cache_set('nsmi_h1_indexes', $headings, 'cache', CACHE_TEMPORARY);
+  }
+
+  if ($index) {
+    return $headings[$index];
+  }
+  else {
+    return $headings;
+  }
+}
+
+function nsmi_get_term_name($term) {
+  if (trim($term->l4_heading)) return trim($term->l4_heading);
+  if (trim($term->l3_heading)) return trim($term->l3_heading);
+  if (trim($term->l2_heading)) return trim($term->l2_heading);
+  return trim($term->top_heading);
+}
+
+function nsmi_get_depth($term) {
+  if (trim($term->l4_heading)) return 3;
+  if (trim($term->l3_heading)) return 2;
+  if (trim($term->l2_heading)) return 1;
+  return 0;
+}
+
+function nsmi_update_nsmi($nsmi) {
+  db_update('nsmi')
+    ->condition('pkey', $nsmi->pkey)
+    ->fields(array('tid' => $nsmi->tid))
+    ->execute();
+}

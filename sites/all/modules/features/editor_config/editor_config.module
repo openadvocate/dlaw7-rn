@@ -1,0 +1,159 @@
+<?php
+/**
+ * @file
+ * Code for the Editor Config feature.
+ */
+
+include_once 'editor_config.features.inc';
+
+function editor_config_form_block_admin_configure_alter(&$form, $form_state, $form_id) {
+  if (!empty($form['settings']['body_field'])) {
+    $path = drupal_get_path('module', 'editor_config');
+    drupal_add_css($path . '/css/editor_config.css');
+    drupal_add_js($path . '/js/ckEdit.js',
+      array('type' => 'file', 'scope' => 'footer', 'weight' => 9)
+    );
+  }
+}
+
+function editor_config_form_node_form_alter(&$form, $form_state, $form_id) {
+  global $user;
+
+  // Only include on node add/edit forms.
+  if (!empty($form['#node_edit_form'])) {
+    $path = drupal_get_path('module', 'editor_config');
+
+    drupal_add_css("$path/css/editor_config.css");
+    drupal_add_js("$path/js/vt-summary.js");
+    drupal_add_js("$path/js/clear-links.js");
+    drupal_add_js(drupal_get_path('module', 'editor_config') . '/js/ckEdit.js',
+      array('type' => 'file', 'scope' => 'footer', 'weight' => 9)
+    );
+
+    // Hide and alter strings on image field.
+    $form['field_images'][LANGUAGE_NONE]['#title'] = '';
+    $form['field_images'][LANGUAGE_NONE]['#file_upload_title'] = 'Add a new image';
+
+    // Move selectoradd fields into respective vertical tabs.
+    if (isset($form['field_zipcode'])) {
+      $form['#group_children']['field_zipcode_selectoradd'] = 'group_zipcode';
+    }
+    if (isset($form['field_language'])) {
+      $form['#group_children']['field_language_selectoradd'] = 'group_language';
+    }
+
+    // Hide input format
+    $form['#after_build'][] = 'editor_config_node_form_after_build';
+
+    // Add button for draft.
+    // @see tcvlan_refnet_form_referral_node_form_alter() for referral's submit text.
+    if ($form['#bundle'] != 'referral') {
+      $form['actions']['submit']['#value'] = 'Publish';
+    }
+    $form['actions']['submit']['#submit'][] = 'editor_config_node_form_publish';
+
+    if (!isset($form['actions']['save_draft']) or $form['actions']['save_draft']['#access'] !== FALSE) {
+      $form['actions']['save_draft'] = array(
+        '#type' => 'submit',
+        '#value' => 'Save As Draft',
+        '#weight' => 10,
+        '#submit' => array(
+          'node_form_submit',
+          'editor_config_node_form_draft',
+        ),
+      );
+    }
+
+    // Place another set of buttons right below body field.
+    // $form['actions_another'] = $form['actions'];
+    // $form['actions_another']['#weight'] = $form['body']['#weight'] + 2;
+
+    // Hide from users (uid > 1)
+    if ($user->uid > 1) {
+      if (isset($form['options'])) {
+        $form['options']['#access'] = FALSE;
+      }
+      if (isset($form['menu'])) {
+        $form['menu']['#access'] = FALSE;
+      }
+    }
+
+    if (isset($form['field_vevent'])) {
+      $form['field_vevent']['#access'] = FALSE;
+    }
+
+    if (isset($form['field_qr_vcard'])) {
+      $form['field_qr_vcard']['#access'] = FALSE;
+    }
+
+    if (isset($form['field_section']) and !empty($form['#node']->nid)) {
+      // Disable Section of the page is a child of a section and cannot have its own children.
+      $result = db_query(
+        "SELECT *
+        FROM field_data_field_section
+        WHERE field_section_target_id = :nid",
+        array(':nid' => $form['#node']->nid));
+
+      foreach ($result as $row) {
+        $no_section = 0;
+
+        $parent = node_load($row->entity_id);
+        $parent_link = l($parent->title, 'node/' . $parent->nid);
+        $form['field_section']['#type'] = 'markup';
+        $form['field_section']['#markup'] = "<br><p><b>This page is already a section child of '$parent_link' and may not build its own section. Only after removing this page from the section parent, you can build a new section.</b></p>";
+        break;
+      }
+    }
+
+    if (isset($form['field_category'])) {
+      $form['field_category'][LANGUAGE_NONE]['#size'] = 30;
+    }
+
+    // Alter language, since we are using comments for feedbacks.
+    if ($form['comment_settings']) {
+      if ($form['type']['#value'] == 'page') {
+        $form['comment_settings']['#title'] = 'Feedback';
+        unset($form['comment_settings']['comment']['#options'][0]);
+        $form['comment_settings']['comment'][1]['#description'] = 'Visitors cannot leave feedbacks.';
+        $form['comment_settings']['comment'][2]['#description'] = 'Let visitors vote and leave feedbacks.';
+      }
+      // i.e. type == 'contact'. No feedback for contacts.
+      else {
+        $form['comment_settings']['#access'] = FALSE;
+      }
+    }
+  }
+}
+
+/**
+ * Hide input format.
+ */
+function editor_config_node_form_after_build($form) {
+  global $user;
+
+  if ($user->uid > 1) {
+    $form['body'][LANGUAGE_NONE][0]['format']['#access'] = FALSE;
+  }
+
+  return $form;
+}
+
+/**
+ * Extra node_form submit handler: publish
+ */
+function editor_config_node_form_publish($form, $form_state) {
+  $node = $form_state['node'];
+  $node->status = 1;
+  node_save($node);
+  drupal_set_message('The post is published. It may take up to 1 hour for changes to be visible to the public.');
+}
+
+/**
+ * Extra node_form submit handler: save as draft
+ */
+function editor_config_node_form_draft($form, $form_state) {
+  $node = $form_state['node'];
+  $node->status = 0;
+  node_save($node);
+  drupal_set_message('The post is saved as a draft.');
+}

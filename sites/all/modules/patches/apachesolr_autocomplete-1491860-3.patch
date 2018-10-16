@@ -1,0 +1,38 @@
+#
+# This patch is inspired by https://www.drupal.org/node/1491860 (#3)
+#
+
+--- sites/all/modules/contrib/apachesolr_autocomplete/apachesolr_autocomplete.module  (revision 1237)
++++ sites/all/modules/contrib/apachesolr_autocomplete/apachesolr_autocomplete.module  (working copy)
+@@ -49,6 +49,11 @@
+       $element = &$form['basic']['keys'];
+       $context_id = 'apachesolr_search_page:' . $form['#search_page']['page_id'];
+       break;
++    case 'apachesolr_panels_search_form':
++    case 'apachesolr_panels_search_block':
++      $element = &$form['apachesolr_panels_search_form'];
++      apachesolr_autocomplete_do_alter($element);
++      $context_id = 'apachesolr_search_page:' . apachesolr_search_default_search_page();
++      break;
+   }
+   // Do the actual form altering.
+   if (isset($context_id) && isset($element)) {
+@@ -509,6 +509,10 @@
+     // Eliminate suggestions that are stopwords or are already in the query.
+     $matches_clone = $matches;
+     $stopwords = apachesolr_autocomplete_get_stopwords($solr);
++    // To fix php warning 'in_array() expects parameter 2 to be array, null given'
++    if (empty($stopwords) and !is_array($stopwords)) {
++      $stopwords = array();
++    }
+     foreach ($matches_clone as $term => $count) {
+       if ((strlen($term) > 3) && !in_array($term, $stopwords) && !array_search($term, $keys_array)) {
+         // Longer strings get higher ratings.
+@@ -613,6 +613,7 @@
+     return array();
+   }
+
++  $words = array();
+   foreach (explode("\n", $response->data) as $line) {
+     if (drupal_substr($line, 0, 1) == "#") {
+       continue;

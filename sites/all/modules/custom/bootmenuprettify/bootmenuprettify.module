@@ -1,0 +1,57 @@
+<?php
+
+function bootmenuprettify_preprocess_page(&$vars) {
+    $arg0 = arg(0);
+    $arg1 = arg(1);
+    $arg2 = arg(2);
+    $arg3 = arg(3);
+    if (!empty($arg0) && !empty($arg1) && !empty($arg2) && !empty($arg3)) {
+      if (($arg0 == 'admin') && ($arg1 == 'structure') && ($arg2 == 'menu') && ($arg3 == 'manage')) {
+        drupal_add_js(drupal_get_path('module', 'bootmenuprettify') . '/js/bootmenuprettify.js', 'file');
+      }      
+    }
+}
+
+// add this to template.php
+// function dlaw4_bootswatch_menu_tree__menu_block__main_menu($vars) {
+//   return '<ul class="menu nav navbar-nav">' . $vars['tree'] . '</ul>';
+// }
+
+function bootmenuprettify_form_alter(&$form, &$form_state, $form_id) {
+
+  switch ($form_id) {
+    case 'menu_edit_item':
+      $form['field_tags'] =array(
+      '#type' => 'fieldset',
+      '#title' => 'Advanced Setting',
+      '#group' => 'additional_settings',
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#attributes' => array('class' => array('hide'))
+      );
+
+      if (!empty($form['description'])) {
+      $form['field_tags']['description'] = $form['description'];
+      unset($form['description']);
+        }
+
+      if (!empty($form['weight'])) {
+        $form['field_tags']['weight'] = $form['weight'];
+        unset($form['weight']);
+      }
+      
+      if (!empty($form['expanded'])) {
+        $form['field_tags']['expanded'] = $form['expanded'];
+        unset($form['expanded']);
+      }
+
+      if (!empty($form['parent'])) {
+        $form['field_tags']['parent'] = $form['parent'];
+        unset($form['parent']);
+      }
+
+    default:
+      # code...
+      break;
+  }
+}

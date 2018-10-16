@@ -1,0 +1,34 @@
+.dlaw-social-media-links-wrapper{
+  a{
+    color: #fff;
+  }
+}
+
+#toolbar-chevron{
+  color: #fff;
+}
+
+a, .pagination > li > a, .pagination > li > span{
+  color: #CC0000;
+  &:hover{
+    color: darken(#CC0000, 10%);
+  }
+}
+
+.btn-primary{
+  background: #990000;
+  &:hover{
+    background: darken(#990000, 10%);    
+  }
+}
+
+#edit-apachesolr-panels-search-form{
+  height: 37px;
+}
+
+#footer-region{
+  color: #333333;
+  a{
+    color: #fff;
+  }
+}

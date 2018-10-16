@@ -1,0 +1,17 @@
+<?php
+
+/**
+ * @file
+ * Validates user input Zip codes.
+ */
+
+/**
+ * Implements hook_selectoradd_term_validate().
+ */
+function zipvalidate_selectoradd_term_validate($validate_type, $term) {
+  if ($validate_type == 'zipcode') {
+    if (!preg_match('/^\d{5}$/', $term)) {
+      return t('Invalid Zip Code format. It must be 5 digits.');
+    }
+  }
+}

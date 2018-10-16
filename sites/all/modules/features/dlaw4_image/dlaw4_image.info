@@ -1,0 +1,16 @@
+name = DLAW4 Image
+description = Dlaw4 image style
+core = 7.x
+package = Features
+version = 7.x-0.16
+project = dlaw4_image
+dependencies[] = filtersie
+dependencies[] = image
+features[features_api][] = api:2
+features[image][] = blur_and_darken_background
+features[image][] = blur_background
+features[image][] = darken_background
+features[image][] = dlaw4_image
+features[image][] = hero
+features[image][] = large_dlaw_image
+features[image][] = logo_for_og

@@ -1,0 +1,1019 @@
+<?php
+/**
+ * @file
+ * Provides a frontlayout page in the administrative interface.
+ *
+ * Code borrowed from Dashboard module.
+ */
+
+/**
+ * Implements hook_help().
+ */
+function frontlayout_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#frontlayout':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('The Front Layout module provides a <a href="@frontlayout">Front Layout page</a> in the administrative interface for organizing administrative tasks and navigation, and tracking information within your site. The Front Layout page contains blocks, which you can add to and arrange using the drag-and-drop interface that appears when you click on the <em>Customize Front Layout</em> link. Within this interface, blocks that are not primarily used for site administration do not appear by default, but can be added via the <em>Add other blocks</em> link. For more information, see the online handbook entry for <a href="@handbook">Front Layout module</a>.', array('@handbook' => 'http://drupal.org/documentation/modules/frontlayout', '@frontlayout' => url('admin/dashboard/appearance/frontlayout'))) . '</p>';
+      $output .= '<h3>' . t('Uses') . '</h3>';
+      $output .= '<dl>';
+      $output .= '<dt>' . t('Tracking user activity') . '</dt>';
+      $output .= '<dd>' . t("By enabling blocks such as <em>Who's online</em> and <em>Who's new</em>, site users can track who is logged in and new user signups at a centralized location.") . '</dd>';
+      $output .= '<dt>' . t('Tracking content activity') . '</dt>';
+      $output .= '<dd>' . t('By enabling blocks such as <em>Recent blog posts</em>, <em>New forum topics</em> and <em>Recent comments</em>, site users can view newly added site content at a glance.') . '</dd>';
+      $output .= '</dl>';
+      return $output;
+
+    case 'admin/dashboard/appearance/frontlayout/configure':
+      // @todo This assumes the current page is being displayed using the same
+      //   theme that the frontlayout is displayed in.
+      $output = '<p>' . t('Rearrange blocks for display on the <a href="@frontlayout-url">frontlayout page</a>. Blocks placed in the <em>frontlayout (inactive)</em> region are not displayed when viewing the frontlayout page, but are available within its <em>Customize front layout</em> interface. Removing a block from active frontlayout display makes it available on the main <a href="@blocks-url">blocks administration page</a>.', array('@frontlayout-url' => url('admin/dashboard/appearance/frontlayout'), '@blocks-url' => url("admin/structure/block/list/{$GLOBALS['theme_key']}"))) . '</p>';
+      return $output;
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function frontlayout_menu() {
+  $items['admin/dashboard/appearance/frontlayout'] = array(
+    'title' => 'Home Page Builder',
+    'description' => 'View and customize your Layout.',
+    'page callback' => 'frontlayout_admin',
+    'access arguments' => array('access frontlayout'),
+    // Make this appear first, so for example, in admin menus, it shows up on
+    // the top corner of the window as a convenient "home link".
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 2,
+  );
+  $items['admin/dashboard/appearance/frontlayout/configure'] = array(
+    'title' => 'Configure available front layout blocks',
+    'description' => 'Configure which blocks can be shown on the front layout.',
+    'page callback' => 'frontlayout_admin_blocks',
+    'access arguments' => array('administer dlaw blocks'),
+    'type' => MENU_VISIBLE_IN_BREADCRUMB,
+  );
+  $items['admin/dashboard/appearance/frontlayout/customize'] = array(
+    'title' => 'Customize front layout',
+    'description' => 'Customize your front layout.',
+    'page callback' => 'frontlayout_admin',
+    'page arguments' => array(TRUE),
+    'access arguments' => array('access frontlayout'),
+    'type' => MENU_VISIBLE_IN_BREADCRUMB,
+  );
+  $items['admin/dashboard/appearance/frontlayout/drawer'] = array(
+    'page callback' => 'frontlayout_show_disabled',
+    'access arguments' => array('administer dlaw blocks'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/dashboard/appearance/frontlayout/block-content/%/%'] = array(
+    'page callback' => 'frontlayout_show_block_content',
+    'page arguments' => array(3, 4),
+    'access arguments' => array('administer dlaw blocks'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/dashboard/appearance/frontlayout/update'] = array(
+    'page callback' => 'frontlayout_update',
+    'access arguments' => array('administer dlaw blocks'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function frontlayout_permission() {
+  return array(
+    'access frontlayout' => array(
+      'title' => t('View the administrative Front layout'),
+      // Note: We translate the 'Administer DLAW blocks' permission string here with
+      // a separate t() call, to make sure it gets the same translation as when
+      // it's in block_permission().
+      'description' => t('Customizing the Front layout requires the !permission-name permission.', array(
+        '!permission-name' => l(t('Administer DLAW blocks'), 'admin/people/permissions', array('fragment' => 'module-block')),
+      )),
+    ),
+    'administer dlaw blocks' => array(
+      'title' => t('Administer DLAW blocks'),
+      'description' => t('Block administration limited to DLAW blocks.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_block_info_alter().
+ */
+function frontlayout_block_info_alter(&$blocks, $theme, $code_blocks) {
+  $admin_theme = variable_get('admin_theme');
+  if (($admin_theme && $theme == $admin_theme) || (!$admin_theme && $theme == variable_get('theme_default', 'bartik'))) {
+    foreach ($blocks as $module => &$module_blocks) {
+      foreach ($module_blocks as $delta => &$block) {
+        // Make administrative blocks that are not already in use elsewhere
+        // available for the frontlayout.
+        if (empty($block['status']) && (empty($block['region']) || $block['region'] == BLOCK_REGION_NONE) && !empty($code_blocks[$module][$delta]['properties']['administrative'])) {
+          $block['status'] = 1;
+          $block['region'] = 'frontlayout_inactive';
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_block_list_alter().
+ *
+ * Skip rendering frontlayout blocks when not on the frontlayout page itself. This
+ * prevents expensive frontlayout blocks from causing performance issues on pages
+ * where they will never be displayed.
+ */
+function frontlayout_block_list_alter(&$blocks) {
+  if (!frontlayout_is_visible()) {
+    foreach ($blocks as $key => $block) {
+      if (in_array($block->region, frontlayout_regions())) {
+        unset($blocks[$key]);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_page_build().
+ *
+ * Display Front layout blocks in the main content region.
+ */
+function frontlayout_page_build(&$page) {
+  global $theme_key;
+
+  if (frontlayout_is_visible()) {
+    $block_info = array();
+
+    $page['content']["toop"] = array(
+      '#markup' => '<div class="container">');
+
+    $slides = count(variable_get('carousel_slides', array()));
+    $slides_msg = "<a class='button manage-sites-button' href='/admin/dashboard/appearance/slides'><span class='fa fa-desktop'></span> Manage Slides <span class='badge'>" . $slides . "</span></a>";
+    $slides_msg2 = "<a class='button mission-button' href='/admin/dashboard/appearance/mission'><span class='glyphicon glyphicon-comment'></span> Mission </a>";
+
+    // $slides_msg = "<a href='/admin/dashboard/appearance/slides'>$slides slide(s)</a> selected. <a href='/admin/dashboard/appearance/slides'>Remove all slides</a> if you want to remove slideshow on the front page.";
+
+    $page['content']['top2'] = array(
+      '#markup' => '<div class="slideshow clearfix">
+        <div class="col-md-12">
+            <div class="">' . $slides_msg . '</div>
+            <div class="">' . $slides_msg2 . '</div>
+        </div>
+      </div>',
+    );
+
+
+
+    // Create a wrapper for the frontlayout itself, then insert each frontlayout
+    // region into it.
+    $page['content']['frontlayout'] = array('#theme_wrappers' => array('frontlayout'));
+
+    // Put inactive region in front.
+    $regions = frontlayout_regions();
+    $inactive_region = array_pop($regions);
+    array_unshift($regions, $inactive_region);
+
+    foreach ($regions as $region) {
+      // Do not show frontlayout blocks that are disabled.
+      if ($region == 'frontlayout_inactive') {
+        // continue;
+      }
+      // Insert regions even when they are empty, so that they will be
+      // displayed when the frontlayout is being configured.
+      $page['content']['frontlayout'][$region] = !empty($page[$region]) ? $page[$region] : array();
+      $page['content']['frontlayout'][$region]['#frontlayout_region'] = $region;
+
+
+      // Allow each frontlayout region to be themed differently, or fall back on
+      // the generic theme wrapper function for frontlayout regions.
+      $page['content']['frontlayout'][$region]['#theme_wrappers'][] = array($region, 'frontlayout_region');
+      unset($page[$region]);
+      $blocks_found = array();
+      
+      foreach ($page['content']['frontlayout'][$region] as $item) {
+        if (isset($item['#theme_wrappers']) && is_array($item['#theme_wrappers']) && in_array('block', $item['#theme_wrappers'])) {
+          // If this item is a block, ensure it has a subject.
+          if (empty($item['#block']->subject)) {
+            // Locally cache info data for the object for all blocks, in case
+            // we find a block similarly missing title from the same module.
+            if (!isset($block_info[$item['#block']->module])) {
+              $block_info[$item['#block']->module] = module_invoke($item['#block']->module, 'block_info');
+            }
+            $item['#block']->subject = $block_info[$item['#block']->module][$item['#block']->delta]['info'];
+          }
+          $item['#block']->subject .= frontlayout_block_edit_link($item['#block']);
+          $blocks_found[$item['#block']->module . '_' . $item['#block']->delta] = TRUE;
+        }
+      }
+
+      // Find blocks which were not yet displayed on the page (were empty), and
+      // add placeholder items in their place for rendering.
+      $block_list = db_select('block')
+        ->condition('theme', $theme_key)
+        ->condition('status', 1)
+        ->condition('region', $region)
+        ->fields('block')
+        ->execute();
+      foreach ($block_list as $block) {
+        if (!isset($blocks_found[$block->module . '_' . $block->delta])) {
+          $block->enabled = $block->page_match = TRUE;
+          $block->content = array('#markup' => '<div class="frontlayout-block-empty">(empty)</div>');
+          if (!isset($block_info[$block->module])) {
+            $block_info[$block->module] = module_invoke($block->module, 'block_info');
+          }
+          $block->subject = t('@title', array('@title' => $block_info[$block->module][$block->delta]['info']));
+          $block_render = array($block->module . '_' . $block->delta => $block);
+          $build = _block_get_renderable_array($block_render);
+          $page['content']['frontlayout'][$block->region][] = $build;
+        }
+      }
+    }
+
+    $page['content']['bottom'] = array(
+      '#markup' => '</div>',
+    );
+
+
+  }
+}
+
+/**
+ * Determine where the block edit page is, at core block admin or custom
+ * Layout settings?
+ */
+function frontlayout_block_edit_link($block) {
+  $edit_path = $edit_link = '';
+
+  if ($block->module == 'block' or function_exists($block->module . '_block_configure')) {
+    $edit_path = "admin/structure/block/manage/{$block->module}/{$block->delta}/configure";
+  }
+  elseif (function_exists($block->module . '_menu')) {
+    $menus = call_user_func($block->module . '_menu');
+
+    foreach ($menus as $path => $menu) {
+      if (strpos($path, 'admin/dashboard/settings/') === 0) {
+        $edit_path = $path;
+        break;
+      }
+    }
+  }
+
+  if ($edit_path) {
+    $edit_link = l('<span class="badge">edit</span>', $edit_path, array(
+      'html' => TRUE,
+      'query' => array('destination' => 'admin/dashboard/appearance/frontlayout'),
+      'attributes' => array('class' => 'block-edit', 'title' => 'Edit the block'),
+    ));
+  }
+
+  return $edit_link;
+}
+
+/**
+ * Implements hook_system_info_alter().
+ *
+ * Add regions to each theme to store the frontlayout blocks.
+ */
+function frontlayout_system_info_alter(&$info, $file, $type) {
+  if ($type == 'theme') {
+    // Add the frontlayout regions (the "inactive" region should always appear
+    // last in the list, for usability reasons).
+    $frontlayout_regions = frontlayout_region_descriptions();
+    if (isset($frontlayout_regions['frontlayout_inactive'])) {
+      $inactive_region = $frontlayout_regions['frontlayout_inactive'];
+      unset($frontlayout_regions['frontlayout_inactive']);
+      $frontlayout_regions['frontlayout_inactive'] = $inactive_region;
+    }
+    $info['regions'] += $frontlayout_regions;
+    // Indicate that these regions are intended to be displayed whenever the
+    // frontlayout is displayed in an overlay. This information is provided for
+    // any module that might need to use it, not just the core Overlay module.
+    $info['overlay_regions'] = !empty($info['overlay_regions']) ? array_merge($info['overlay_regions'], frontlayout_regions()) : frontlayout_regions();
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function frontlayout_theme() {
+  return array(
+    'frontlayout' => array(
+      'render element' => 'element',
+    ),
+    'frontlayout_admin' => array(
+      'render element' => 'element',
+    ),
+    'frontlayout_region' => array(
+      'render element' => 'element',
+    ),
+    'frontlayout_disabled_blocks' => array(
+      'variables' => array('blocks' => NULL),
+    ),
+    'frontlayout_disabled_block' => array(
+      'variables' => array('block' => NULL),
+    ),
+    'frontlayout_admin_display_form' => array(
+      // When building the form for configuring frontlayout blocks, reuse the
+      // Block module's template for the main block configuration form.
+      'template' => 'block-admin-display-form',
+      'path' => drupal_get_path('module', 'block'),
+      'file' => 'block.admin.inc',
+      'render element' => 'form',
+    ),
+  );
+}
+
+/**
+ * Implements hook_forms().
+ */
+function frontlayout_forms() {
+  // Reroute the frontlayout configuration form to the main blocks administration
+  // form. This allows us to distinguish them by form ID in hook_form_alter().
+  $forms['frontlayout_admin_display_form'] = array(
+    'callback' => 'block_admin_display_form',
+  );
+
+  return $forms;
+}
+
+/**
+ * Page callback: Displays the frontlayout.
+ *
+ * @param $launch_customize
+ *   Whether to launch in customization mode right away. TRUE or FALSE.
+ */
+function frontlayout_admin($launch_customize = FALSE) {
+  $js_settings = array(
+    'frontlayout' => array(
+      'drawer' => url('admin/dashboard/appearance/frontlayout/drawer'),
+      'blockContent' => url('admin/dashboard/appearance/frontlayout/block-content'),
+      'updatePath' => url('admin/dashboard/appearance/frontlayout/update'),
+      'formToken' => drupal_get_token('frontlayout-update'),
+      'launchCustomize' => $launch_customize,
+      'frontlayout' => url('admin/dashboard/appearance/frontlayout'),
+      'emptyBlockText' => '',
+      'emptyRegionTextInactive' => t('This region is empty.<br>Click <em>Customize Layout</em> to add blocks to it.'),
+      'emptyRegionTextActive' => t('DRAG HERE'),
+    ),
+  );
+  $build = array(
+    '#theme' => 'frontlayout_admin',
+    '#message' => t('To customize the front layout page, move blocks to the front layout regions on the <a href="@frontlayout">front layout administration page</a>, or enable JavaScript on this page to use the drag-and-drop interface.', array('@frontlayout' => url('admin/dashboard/appearance/frontlayout/configure'))),
+    '#access' => user_access('administer dlaw blocks'),
+    '#attached' => array(
+      'js' => array(
+        drupal_get_path('module', 'frontlayout') . '/frontlayout.js',
+        array('data' => $js_settings, 'type' => 'setting'),
+      ),
+      'library' => array(array('system', 'ui.sortable')),
+    ),
+  );
+  return $build;
+}
+
+/**
+ * Page callback: Builds the page for administering frontlayout blocks.
+ *
+ * This page reuses the Block module's administration form but limits editing
+ * to blocks that are available to appear on the frontlayout.
+ *
+ * @see block_admin_display()
+ * @see block_admin_display_form()
+ * @see frontlayout_form_frontlayout_admin_display_form_alter()
+ * @see template_preprocess_frontlayout_admin_display_form()
+ */
+function frontlayout_admin_blocks() {
+  global $theme_key;
+  drupal_theme_initialize();
+  module_load_include('inc', 'block', 'block.admin');
+
+  // Prepare the blocks for the current theme, and remove those that are
+  // currently displayed in non-frontlayout regions.
+  // @todo This assumes the current page is being displayed using the same
+  //   theme that the frontlayout is displayed in.
+  $blocks = block_admin_display_prepare_blocks($theme_key);
+  $frontlayout_regions = frontlayout_region_descriptions();
+  $regions_to_remove = array_diff_key(system_region_list($theme_key, REGIONS_VISIBLE), $frontlayout_regions);
+  foreach ($blocks as $id => $block) {
+    if (isset($regions_to_remove[$block['region']])) {
+      unset($blocks[$id]);
+    }
+  }
+
+  // Pass in the above blocks and frontlayout regions to the form, so that only
+  // frontlayout-related regions will be displayed.
+  return drupal_get_form('frontlayout_admin_display_form', $blocks, $theme_key, $frontlayout_regions);
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function frontlayout_form_block_admin_display_form_alter(&$form, &$form_state, $form_id) {
+  // Hide frontlayout regions (and any blocks placed within them) from the block
+  // administration form and from the options list on that form. This
+  // function is called for both the frontlayout block configuration form and the
+  // standard block configuration form so that both forms can share the same
+  // constructor. As a result the form_id must be checked.
+  if ($form_id != 'frontlayout_admin_display_form') {
+    $frontlayout_regions = frontlayout_region_descriptions();
+    $form['block_regions']['#value'] = array_diff_key($form['block_regions']['#value'], $frontlayout_regions);
+    foreach (element_children($form['blocks']) as $i) {
+      $block = &$form['blocks'][$i];
+      if (isset($block['region']['#default_value']) && isset($frontlayout_regions[$block['region']['#default_value']]) && $block['region']['#default_value'] != 'frontlayout_inactive') {
+        $block['#access'] = FALSE;
+      }
+      elseif (isset($block['region']['#options'])) {
+        $block['region']['#options'] = array_diff_key($block['region']['#options'], $frontlayout_regions);
+      }
+      // Show inactive frontlayout blocks as disabled on the main block
+      // administration form, so that they are available to place in other
+      // regions of the theme. Note that when the form is submitted, any such
+      // blocks which still remain disabled will immediately be put back in the
+      // 'frontlayout_inactive' region, because frontlayout_block_info_alter() is
+      // called when the blocks are rehashed. Fortunately, this is the exact
+      // behavior we want.
+      if ($block['region']['#default_value'] == 'frontlayout_inactive') {
+        // @todo These do not wind up in correct alphabetical order.
+        $block['region']['#default_value'] = NULL;
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function frontlayout_form_frontlayout_admin_display_form_alter(&$form, &$form_state) {
+  // Redirect the 'configure' and 'delete' links on each block back to the
+  // frontlayout blocks administration page.
+  foreach ($form['blocks'] as &$block) {
+    if (isset($block['configure']['#href'])) {
+      $block['configure']['#options']['query']['destination'] = 'admin/dashboard/appearance/frontlayout/configure';
+    }
+    if (isset($block['delete']['#href'])) {
+      $block['delete']['#options']['query']['destination'] = 'admin/dashboard/appearance/frontlayout/configure';
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function frontlayout_form_block_admin_configure_alter(&$form, &$form_state) {
+  global $theme_key, $user;
+  drupal_theme_initialize();
+  // Hide the frontlayout regions from the region select list on the block
+  // configuration form, for all themes except the current theme (since the
+  // other themes do not display the frontlayout).
+  // @todo This assumes the current page is being displayed using the same
+  //   theme that the frontlayout is displayed in.
+  $frontlayout_regions = frontlayout_region_descriptions();
+  foreach (element_children($form['regions']) as $region_name) {
+    $region = &$form['regions'][$region_name];
+    if ($region_name != $theme_key && isset($region['#options'])) {
+      $region['#options'] = array_diff_key($region['#options'], $frontlayout_regions);
+    }
+  }
+
+  // Limit actions for site admin.
+  if ($user->uid != 1 and $admin_theme = variable_get('admin_theme', '')) {
+    if (!isset($form['regions'][$admin_theme])) {
+      drupal_set_message('Please enable admin theme. Contact site admin.', 'warning');
+    }
+
+    $form['visibility_title']['#access'] = FALSE;
+    $form['visibility']['#access'] = FALSE;
+
+    foreach (element_children($form['regions']) as $theme) {
+      if ($theme != $admin_theme) {
+        $form['regions'][$theme]['#access'] = FALSE;
+      }
+    }
+
+    $form['regions']['#access'] = FALSE;
+    $form['regions'][$admin_theme]['#title'] = '';
+    $form['regions'][$admin_theme]['#empty_value'] = NULL;
+    if (empty($form['regions'][$admin_theme]['#default_value'])) {
+      $form['regions'][$admin_theme]['#default_value'] = 'frontlayout_inactive';
+      $form['regions'][$admin_theme]['#access'] = FALSE;
+    }
+    foreach ($form['regions'][$admin_theme]['#options'] as $key => $option) {
+      if (strpos($key, 'frontlayout_') === FALSE) {
+        unset($form['regions'][$admin_theme]['#options'][$key]);
+      }
+    }
+
+    $form['#after_build'][] = 'frontlayout_block_admin_configure_after_build';
+  }
+
+  $form['#submit'][] = 'frontlayout_block_admin_configure_submit';
+
+  $form['actions']['delete'] = array(
+    '#type' => 'submit',
+    '#value' => t('Delete'),
+    '#submit' => array('frontlayout_block_admin_configure_delete'),
+  );
+}
+
+/**
+ * 'alter_build' for frontlayout_form_block_admin_configure_alter
+ * to hide text format drop down.
+ */
+function frontlayout_block_admin_configure_after_build($form) {
+  $form['settings']['body_field']['body']['format']['#access'] = FALSE;
+
+  $form['settings']['title']['#description'] = 'Display title for the block. Leave empty if not needed.';
+
+  $form['settings']['info']['#description'] = 'A short description of your block. Used for administering blocks.';
+
+  return $form;
+}
+
+/**
+ * Custom submit handler for frontlayout_form_block_admin_configure_alter().
+ */
+function frontlayout_block_admin_configure_submit($form, $form_state) {
+  // Layout block's visibility and page column in block DB table gets same value
+  // of the counter part block in actual theme, which is '1' and '<front>'
+  // respectively. This causes an issue on Lyaout page such as failing to render
+  // edit link, etc. Here reset the values for the Layut blocks.
+  db_update('block')
+    ->fields(array(
+      'visibility' => 0,
+      'pages' => '',
+      'custom' => 0,
+      'title' => '',
+    ))
+    ->condition('module', $form_state['values']['module'])
+    ->condition('delta', $form_state['values']['delta'])
+    ->condition('theme', variable_get('admin_theme', ''))
+    ->execute();
+
+  // Visibility empty = 0 means the block was created new, and prompt wondering user
+  // where to look for the new block.
+  if (empty($form_state['values']['visibility'])) {
+    drupal_set_message('Look for the new block in disabled blocks region (Click Customize Layout).');
+  }
+}
+
+/**
+ * Custom submit handler for frontlayout_form_block_admin_configure_alter().
+ */
+function frontlayout_block_admin_configure_delete($form, &$form_state) {
+  $destination = array();
+  if (isset($_GET['destination'])) {
+    $destination = array('destination' => $_GET['destination']);
+    unset($_GET['destination']);
+  }
+  
+  list($redirect, ) = explode('?', $form['#action']);
+  $redirect = substr($redirect, 1);
+  $redirect = str_replace('/configure', '/delete', $redirect);
+
+  $form_state['redirect'] = array($redirect, array('query' => $destination));
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function frontlayout_form_block_add_block_form_alter(&$form, &$form_state) {
+  frontlayout_form_block_admin_configure_alter($form, $form_state);
+}
+
+/**
+ * Preprocesses variables for block-admin-display-form.tpl.php.
+ */
+function template_preprocess_frontlayout_admin_display_form(&$variables) {
+  template_preprocess_block_admin_display_form($variables);
+  if (isset($variables['block_regions'][BLOCK_REGION_NONE])) {
+    $variables['block_regions'][BLOCK_REGION_NONE] = t('Other blocks');
+  }
+}
+
+/**
+ * Determines if the frontlayout should be displayed on the current page.
+ *
+ * This function checks if the user is currently viewing the frontlayout and has
+ * access to see it. It is used by other functions in the frontlayout module to
+ * decide whether or not the frontlayout content should be displayed to the
+ * current user.
+ *
+ * Although the menu system normally handles the above tasks, it only does so
+ * for the main page content. However, the frontlayout is not part of the main
+ * page content, but rather is displayed in special regions of the page (so it
+ * can interface with the Block module's method of managing page regions). We
+ * therefore need to maintain this separate function to check the menu item for
+ * us.
+ *
+ * @return
+ *   TRUE if the frontlayout should be visible on the current page, FALSE
+ *   otherwise.
+ *
+ * @see frontlayout_block_list_alter()
+ * @see frontlayout_page_build()
+ */
+function frontlayout_is_visible() {
+  static $is_visible;
+  if (!isset($is_visible)) {
+    // If the current menu item represents the page on which we want to display
+    // the frontlayout, and if the current user has access to see it, return
+    // TRUE.
+    $menu_item = menu_get_item();
+    $is_visible = isset($menu_item['page_callback']) && $menu_item['page_callback'] == 'frontlayout_admin' && !empty($menu_item['access']);
+  }
+  return $is_visible;
+}
+
+/**
+ * Returns an array of frontlayout region descriptions, keyed by region name.
+ */
+function frontlayout_region_descriptions() {
+  $regions = module_invoke_all('frontlayout_regions');
+  drupal_alter('frontlayout_regions', $regions);
+  return $regions;
+}
+
+/**
+ * Returns an array of frontlayout region names.
+ */
+function frontlayout_regions() {
+  $regions = &drupal_static(__FUNCTION__);
+  if (!isset($regions)) {
+    $regions = array_keys(frontlayout_region_descriptions());
+  }
+  return $regions;
+}
+
+/**
+ * Implements hook_frontlayout_regions().
+ */
+function frontlayout_frontlayout_regions() {
+  return array(
+    'frontlayout_col1' => 'Front Column 1',
+    'frontlayout_col2' => 'Front Column 2',
+    'frontlayout_col3' => 'Front Column 3',
+    'frontlayout_footer' => 'Site Footer',
+    'frontlayout_inactive' => 'Inactive',
+  );
+}
+
+/**
+ * Ajax callback: Shows disabled blocks in the frontlayout customization mode.
+ */
+function frontlayout_show_disabled() {
+  global $theme_key;
+
+  // Blocks are not necessarily initialized at this point.
+  $blocks = _block_rehash();
+
+  // Limit the list to blocks that are marked as disabled for the frontlayout.
+  foreach ($blocks as $key => $block) {
+    if ($block['theme'] != $theme_key || $block['region'] != 'frontlayout_inactive') {
+      unset($blocks[$key]);
+    }
+  }
+
+  // Theme the output and end the page request.
+  print theme('frontlayout_disabled_blocks', array('blocks' => $blocks));
+  drupal_exit();
+}
+
+/**
+ * Ajax callback: Displays the rendered contents of a specific block.
+ *
+ * @param $module
+ *   The block's module name.
+ * @param $delta
+ *   The block's delta.
+ */
+function frontlayout_show_block_content($module, $delta) {
+  drupal_theme_initialize();
+  global $theme_key;
+
+  $blocks = array();
+  $block_object = db_query("SELECT * FROM {block} WHERE theme = :theme AND module = :module AND delta = :delta", array(
+    ":theme" => $theme_key,
+    ":module" => $module,
+    ":delta" => $delta,
+    ))
+    ->fetchObject();
+  $block_object->enabled = $block_object->page_match = TRUE;
+  $blocks[$module . "_" . $delta] = $block_object;
+  $block_content = _block_render_blocks($blocks);
+  $build = _block_get_renderable_array($block_content);
+  $rendered_block = drupal_render($build);
+  print $rendered_block;
+  drupal_exit();
+}
+
+/**
+ * Sets the new weight of each region according to the drag-and-drop order.
+ */
+function frontlayout_update() {
+  drupal_theme_initialize();
+  global $theme_key;
+  
+  // Check the form token to make sure we have a valid request.
+  if (!empty($_REQUEST['form_token']) && drupal_valid_token($_REQUEST['form_token'], 'frontlayout-update')) {
+    parse_str($_REQUEST['regions'], $regions);
+    $theme_default = variable_get('theme_default', '');
+    
+    $blocks_available = frontlayout_load_blocks();
+    
+    foreach ($regions as $region_name => $blocks) {
+      if ($region_name == 'disabled_blocks') {
+        $region_name = 'frontlayout_inactive';
+      }
+      foreach ($blocks as $weight => $block_string) {
+        // Trim prefix 'block-'
+        $block_string = substr($block_string, 6);
+        // Normalize with hyphen to make it easy to identify module and delta with $blocks_available.
+        $block_string = str_replace('_', '-', $block_string); 
+
+        if (!isset($blocks_available[$block_string])) {
+          continue;
+        }
+
+        $block = new stdClass();
+        $block->module = $blocks_available[$block_string]['module'];
+        $block->delta = $blocks_available[$block_string]['delta'];
+
+        $block->region = $region_name;
+        $block->weight = $weight;
+        $block->status = 1;
+
+        db_merge('block')
+          ->key(array(
+            'module' => $block->module,
+            'delta' => $block->delta,
+            'theme' => $theme_key,
+          ))
+          ->fields(array(
+            'status' => $block->status,
+            'weight' => $block->weight,
+            'region' => $block->region,
+            'pages' => '',
+          ))
+          ->execute();
+
+        // Duplicate the action above to current Bootstrap theme.
+        if ($theme_default) {
+          $theme_region = frontlayout_map_region($block->region);
+          switch ($theme_region) {
+            case 'front_col1':
+            case 'front_col2':
+            case 'front_col3':
+              $visibility = 1;
+              $pages = '<front>';
+              break;
+            default: // Footer, Inactive
+              $visibility = 0;
+              $pages = '';
+              break;
+          }
+
+          db_merge('block')
+            ->key(array(
+              'module' => $block->module,
+              'delta' => $block->delta,
+              'theme' => $theme_default,
+            ))
+            ->fields(array(
+              'status' => $block->status,
+              'weight' => $block->weight,
+              'region' => frontlayout_map_region($block->region),
+              'visibility' => $visibility,
+              'pages' => $pages,
+            ))
+            ->execute();
+        }
+      }
+    }
+    drupal_set_message(t('The configuration options have been saved.'), 'status', FALSE);
+  }
+  drupal_exit();
+}
+
+/**
+ * Returns HTML for the entire frontlayout.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - element: A render element containing the properties of the frontlayout
+ *     region element, #frontlayout_region and #children.
+ *
+ * @ingroup themeable
+ */
+function theme_frontlayout($variables) {
+  extract($variables);
+  drupal_add_css(drupal_get_path('module', 'frontlayout') . '/frontlayout.css');
+  return '<div id="frontlayout" class="clearfix">' . $element['#children'] . '</div>';
+}
+
+/**
+ * Returns HTML for the non-customizable part of the frontlayout page.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - element: A render element containing a #message.
+ *
+ * @ingroup themeable
+ */
+function theme_frontlayout_admin($variables) {
+  // We only return a simple help message, since the actual content of the page
+  // will be populated via the frontlayout regions in frontlayout_page_build().
+  return '<div class="customize-frontlayout js-hide">' . $variables['element']['#message'] . '</div>';
+}
+
+/**
+ * Returns HTML for a generic frontlayout region.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - element: A render element containing the properties of the frontlayout
+ *     region element, #frontlayout_region and #children.
+ *
+ * @ingroup themeable
+ */
+function theme_frontlayout_region($vars) {
+  $region = $vars['element']['#frontlayout_region'];
+
+  switch ($region) {
+    case 'frontlayout_col1':
+        $output = '<div id="' . $region . '" class="frontlayout-region col-sm-4">';
+      break;
+    case 'frontlayout_col2':
+      $output = '<div id="' . $region . '" class="frontlayout-region col-sm-4">';
+      break;
+    case 'frontlayout_col3':
+      $output = '<div id="' . $region . '" class="frontlayout-region col-sm-4">';
+      break;
+    case 'frontlayout_footer':
+      $output = '<div id="' . $region . '" class="frontlayout-region col-sm-8 col-sm-offset-4"><strong>Site-wide Blocks</strong>';
+      break;
+    default: // frontlayout_inactive
+      $output = '<div id="' . $region . '" class="frontlayout-region col-sm-12"><strong class="inactive-label">Inactive Blocks</strong>';
+      break;
+  }
+
+  $output .= '<div class="region clearfix">';
+  $output .= $vars['element']['#children'];
+  // Closing div.region
+  $output .= '</div>';
+  // Closing div.frontlayout-region
+  $output .= '</div>';
+
+  return $output;
+}
+
+/**
+ * Returns HTML for disabled blocks, for use in frontlayout customization mode.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - blocks: An array of block objects from _block_rehash().
+ *
+ * @ingroup themeable
+ */
+function theme_frontlayout_disabled_blocks($variables) {
+  global $user;
+  extract($variables);
+
+  $output = '<div class="canvas-content">';
+
+  $output .= '<div id="disabled-blocks"><strong>Inactive blocks</strong><div class="region disabled-blocks clearfix">';
+
+  if ($user->uid == 1) {
+    $output .= '<p class="frontlayout-add-other-blocks">' .
+      l(
+        '<span class="glyphicon glyphicon-plus"></span> ' . t('Add other blocks'),
+        'admin/dashboard/appearance/frontlayout/configure',
+        array(
+          'attributes' => array(
+            'class' => array('button'),
+          ),
+          'html' => TRUE,
+        )
+      ) . '</p>';
+  }
+  elseif (user_access('administer dlaw blocks')) {
+    $output .= '<h4 class="frontlayout-add-other-blocks">' .
+      l(
+        '<span class="glyphicon glyphicon-plus"></span> ' . t('Add custom block'),
+        'admin/structure/block/add',
+        array(
+          'attributes' => array(
+              'class' => array('button')
+            ),
+          'query' => array('destination' => 'admin/dashboard/appearance/frontlayout'),
+          'html' => TRUE,
+        )
+      )
+    . '</h4>';
+  }
+
+  foreach ($blocks as $block) {
+    $output .= theme('frontlayout_disabled_block', array('block' => $block));
+  }
+  $output .= '<div class="clearfix"></div>';
+
+  
+  $output .= '</div></div></div>';
+  return $output;
+}
+
+/**
+ * Returns HTML for disabled blocks, for use in frontlayout customization mode.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - block: A block object from _block_rehash().
+ *
+ * @ingroup themeable
+ */
+// function theme_frontlayout_disabled_block($variables) {
+//   extract($variables);
+//   $output = "";
+//   if (isset($block)) {
+//     $output .= '<div id="block-' . $block['module'] . '-' . $block['delta']
+//     . '" class="panel panel-default disabled-block block block-' . $block['module'] . '-' . $block['delta']
+//     . ' module-' . $block['module'] . ' delta-' . $block['delta'] . '">'
+//     . '<h2>' . (!empty($block['title']) && $block['title'] != '<none>' ? check_plain($block['title']) : check_plain($block['info'])) . '</h2>'
+//     . '<div class="content"></div>'
+//     . '</div>';
+//   }
+//   return $output;
+// }
+function theme_frontlayout_disabled_block($variables) {
+  extract($variables);
+  $output = null;
+  if (isset($block)) {
+    $output .= '<div id="block-' . $block['module'] . '-' . $block['delta']
+    . '" class="panel panel-default disabled-block block  block-' . $block['module'] . '-' . $block['delta']
+    . ' module-' . $block['module'] . ' delta-' . $block['delta'] . '">'
+    . '<div class="panel-heading"><h4 class="panel-title">' . (!empty($block['title']) && $block['title'] != '<none>' ? check_plain($block['title']) : check_plain($block['info'])) . '</h4></div>'
+    . '<div class="content"></div>'
+    . '</div>';
+  }
+  return $output;
+}
+/************************************************************************
+ * Custom functions below.
+ ************************************************************************/
+
+/**
+ * Map from Layout region to theme region.
+ */
+function frontlayout_map_region($region) {
+  static $regions = array(
+    'frontlayout_col1'     => 'front_col1',
+    'frontlayout_col2'     => 'front_col2',
+    'frontlayout_col3'     => 'front_col3',
+    'frontlayout_footer'   => 'footer',
+    'frontlayout_inactive' => '-1',
+  );
+
+  return isset($regions[$region]) ? $regions[$region] : $region;
+}
+
+/**
+ * Helps to find module name and block delta that contains '-' and '_'
+ */
+function frontlayout_load_blocks() {
+  $blocks = array();
+
+  if ($admin_theme = variable_get('admin_theme', '')) {
+    $result = db_query("SELECT module, delta FROM block WHERE status = 1 AND theme = :theme",
+      array(':theme' => $admin_theme));
+
+    foreach ($result as $row) {
+      $module_hyph = str_replace('_', '-', $row->module);
+      $delta_hyph = str_replace('_', '-', $row->delta);
+      
+      $blocks["$module_hyph-$delta_hyph"] = array(
+        'module' => $row->module,
+        'delta' => $row->delta,
+      );
+    }
+  }
+
+  return $blocks;
+}
+
+/**
+ * Implements frontlayout_menu_alter().
+ *
+ * Since Administer blocks permission is powerful for site managers, new permission
+ * Administer DLAW blocks has been created for them. Yet, they need to be able to
+ * create and change custom blocks, so altering menu permissions here.
+ */
+function frontlayout_menu_alter(&$items) {
+  $items['admin/structure/block/add']['access arguments'] = array('administer dlaw blocks');
+  $items['admin/structure/block/manage/%/%']['access arguments'] = array('administer dlaw blocks');
+  $items['admin/structure/block/manage/%/%/delete']['access arguments'] = array('administer dlaw blocks');
+}

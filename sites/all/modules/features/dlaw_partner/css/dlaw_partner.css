@@ -1,0 +1,49 @@
+.page-node-submission fieldset.webform-submission-info/*,
+.page-node-submission .webform-component--confirm-email-address*/ {
+  display: none;
+}
+
+/* Partner add/edit page */
+.page-node #edit-field-partner-legal-services-und,
+.page-node #edit-field-partner-non-legal-services-und {
+  column-count: 3;
+}
+
+.page-node #edit-field-partner-county-und {
+  column-count: 4;
+}
+
+/* Partner detail page */
+.partner-page .field-name-field-partner-city .field-items,
+.partner-page .field-name-field-partner-county .field-items,
+.partner-page .field-name-field-partner-pop-served .field-items,
+.partner-page .field-name-field-partner-non-legal-services .field-items,
+.partner-page .field-name-field-partner-lang-method .field-items,
+.partner-page .field-name-field-partner-lang .field-items {
+  column-count: 3;
+}
+
+/* Hide text format */
+.page-node-add-partner #edit-body-und-0-format,
+.node-type-partner #edit-body-und-0-format {
+  display: none;
+}
+
+/* Join request submission page */
+.submission-org-info {
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+.submission-org-info th {
+  text-transform: none;
+}
+
+.primary-contact-note {
+  color: #999;
+  font-style: italic;
+}
+
+.submission-org-info th, .submission-org-info td {
+  padding: 0.5em 0.5em;
+}

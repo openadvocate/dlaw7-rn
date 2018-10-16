@@ -1,0 +1,14 @@
+.theme-item-holder .thumbnail{
+  background: #fff;  
+}
+.theme-item-holder .thumbnail.selected{  
+  border: 3px solid rgba(66, 139, 202, 0.5);
+}
+
+.theme-item-holder.active .thumbnail{
+  background: rgba(66, 139, 202, 0.3);
+}
+
+.theme-item-holder.active .thumbnail.selected{
+  border: 3px solid rgba(66, 139, 202, 0.5);
+}

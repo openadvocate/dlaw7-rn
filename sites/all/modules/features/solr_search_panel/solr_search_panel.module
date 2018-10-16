@@ -1,0 +1,221 @@
+<?php
+/**
+ * @file
+ * Code for the Search feature.
+ */
+
+// <div class="row">
+//   <div class="panel-panel left col-sm-4">
+//     <h1 class="page-header search-header">Search</h1>
+//   </div>
+//   <div class="panel-panel left col-sm-8">
+//     <ul class="nav nav-tabs nav-justified lead">
+//     <li class="active"><a href="#">Find Info</a></li>
+//     <li class=""><a href="/search-help/%query:html_safe">Find Help</a></li>
+//     </ul>
+//   </div>
+// </div>
+
+// <div class="row">
+//   <div class="panel-panel left col-sm-4">
+//     <h1 class="page-header search-header">Search</h1>
+//   </div>
+//   <div class="panel-panel left col-sm-8">
+//     <ul class="nav nav-tabs nav-justified lead">
+//       <li class=""><a href="/search-site/%query:html_safe">Find Info</a></li>
+//       <li class="active"><a href="#">Find Help</a></li>
+//     </ul>
+//   </div>
+// </div>
+
+include_once 'solr_search_panel.features.inc';
+
+
+/**
+ * Implements hook_form_alter().
+ */
+function solr_search_panel_form_alter(array &$form, array &$form_state = array(), $form_id = NULL) {
+  if ($form_id) {
+    switch ($form_id) {
+      case 'apachesolr_panels_search_block':
+      //   dpm($form['#submit']);
+        $form['#submit'][] = 'solr_search_panel_search_block_form_submit';
+      break;
+
+      case 'apachesolr_panels_search_form':
+        $form['apachesolr_panels_search_form']['#attributes']['placeholder'] = 'Search by keyword...';
+            // drupal_add_js(drupal_get_path('module', 'solr_search_panel') . '/solr_search_panel.js');
+            // add ability to retain filters when performing a keyword search
+            // see apachesolr_search.pages.inc
+
+
+            // $form['basic']['get'] = array(
+            //   '#type' => 'hidden',
+            //   '#default_value' => json_encode(array_diff_key($_GET, array('q' => 1, 'page' => 1, 'solrsort' => 1, 'retain-filters' => 0))),
+            // );
+            // $env = apachesolr_default_environment();
+            // if (apachesolr_has_searched($env)) {
+            //   $query = apachesolr_current_query($env);
+            //   // We use the presence of filter query params as a flag for the retain filters checkbox.
+            //   $fq = $query->getParam('fq');
+            // }
+            // if ($fq || isset($form_state['input']['retain-filters'])) {
+            //   $form['basic']['retain-filters'] = array(
+            //     '#type' => 'checkbox',
+            //     '#title' => t('Retain current filters'),
+            //     '#default_value' => (int) !empty($_GET['retain-filters']),
+            //     // '#default_value' => 0,
+            //   );
+            // }
+            // // override default submit
+            // $form['#submit'][] = 'solr_search_panel_search_form_submit';
+
+
+
+      break;
+    }
+
+  }
+}
+
+function solr_search_panel_search_block_form_submit($form, &$form_state) {
+  $path = "search-site";
+  $redirect = $path . '/' . $form_state['values']['apachesolr_panels_search_form'];
+  // $form_state['redirect'] = array($redirect, array('query' => array("f[0]" => "bundle:page")));
+  $form_state['redirect'] = array($redirect);
+}
+
+// // *
+// //  * Submit override for apachesolr_panels_search_form.
+// //  * See apachesolr_panels_search_block_form_submit() and apachesolr_search_custom_page_search_form_submit().
+
+// function solr_search_panel_search_form_submit($form, &$form_state) {
+//   // $path = "search-site";
+//   // $redirect = $path . '/' . $form_state['values']['apachesolr_panels_search_form'];
+//   // $form_state['redirect'] = array($redirect, array('query' => array("f[0]" => "bundle:page")));
+
+//   // Allow core to ensure we have control of the redirect destination.
+//   $form_state['values']['search_block_form'] = $form_state['values']['apachesolr_panels_search_form'];
+//   $form_state['values']['apachesolr_panels_search_block'] = $form_state['values']['apachesolr_panels_search_form'];
+//   search_box_form_submit($form, $form_state);
+//   // set no_redirect to false so that the redirect query options are used
+//   $form_state['no_redirect'] = FALSE;
+//   // Redirect to the specified search page.
+//   // $path = $form_state['args'][0];
+//   $path = "search-site";
+//   $redirect = $path . '/' . $form_state['values']['apachesolr_panels_search_form'];
+//   // retain filters or remove them
+//   $get = array();
+//   if (isset($form_state['values']['get'])) {
+//     $get = json_decode($form_state['values']['get'], TRUE);
+//   }
+//   if (!empty($form_state['values']['retain-filters'])) {
+//     // Add our saved values
+//     $get['retain-filters'] = '1';
+//   }
+//   else {
+//     // Remove all filters
+//     if (!empty($search_page['settings']['apachesolr_search_allow_user_input'])) {
+//       unset($get['fq']);
+//     }
+//     if (module_exists('facetapi')) {
+//       unset($get['f']);
+//     }
+//     $get = array("f[0]" => "bundle:page");
+//   }
+//   // Add the query values into the redirect.
+//   $form_state['redirect'] = array($redirect, array('query' => $get));
+// }
+
+
+/**
+ * Implements hook_menu_alter().
+ */
+function solr_search_panel_menu_alter(&$items) {
+  // Since we are using panelized search page at /search-site,
+  // disable path /search/site.
+  if (isset($items['search/site'])) {
+    $items['search/site']['access callback'] = FALSE;
+    $items['search/site/%']['access callback'] = FALSE;
+  }
+
+  if (isset($items['search/node'])) {
+    $items['search/node']['access callback'] = FALSE;
+    $items['search/node/%']['access callback'] = FALSE;
+  }
+}
+
+/*
+ * Implements hook_facet_items_alter(&$build, &$settings).
+ */
+function solr_search_panel_facet_items_alter(&$build, &$settings) {
+  // Change item label "Display in News List" => "News"
+  if ($settings->facet == 'im_field_news') {
+    if (isset($build[1]) and $build[1]['#markup'] == 'Display in News List') {
+      $build[1]['#markup'] = 'News';
+    }
+  }
+}
+
+function solr_search_panel_has_contact_nodes() {
+  return db_query("SELECT nid FROM node WHERE type = 'contact' AND status = 1 LIMIT 1")->fetchField();
+}
+
+/**
+ * Implements hook_apachesolr_process_results().
+ *
+ * Since Solr module fails to remove a file from index when it is removed from a
+ * content, we set a custom variable flag and run full refresh solr index at
+ * midnight. This prevents removed files from appearing in search result. Full
+ * refresh is the only for sure way I am aware of to address the issue without
+ * hacking solr module. Related cases 50438, 50490, 50568.
+ */
+function solr_search_panel_apachesolr_process_results(array &$results, DrupalSolrQueryInterface $query) {
+  foreach ($results as $key => $result) {
+    if ($result['entity_type'] == 'file') {
+      $file = file_load($result['file']->entity_id);
+
+      if (empty($file) or !file_exists($file->uri)) {
+        unset($results[$key]);
+
+        variable_set('solr_search_panel_refresh_solr_index', REQUEST_TIME);
+      }
+    }
+  }
+
+  // As Drupal's "log searches" only works for core search, log Solr search
+  // keywords here.
+  // 1. As this hook function tends to run twice, check $_POST to run once.
+  // 2. Ignore 2+ paged result and facets.
+  // 3. However accept all if the request is from outside.
+  if ($arg1 = trim(arg(1))) {
+    if ((empty($_POST) and count($_GET) == 1) or !strpos($_SERVER['HTTP_REFERER'], '//'.$_SERVER['HTTP_HOST'])) {
+      watchdog('search', '%keys', array('%keys' => $arg1), WATCHDOG_NOTICE);
+    }
+  }
+}
+
+/**
+ * Implements hook_cron().
+ *
+ * Delete solr index between 12-1am if necessary (checked via variable
+ * solr_search_panel_refresh_solr_index).
+ *
+ * Let the following cron re-index. Running re-index in the same cron as batch
+ * does not work well.
+ */
+function solr_search_panel_cron() {
+  if (date('G') === '0') {
+    $refresh = variable_get('solr_search_panel_refresh_solr_index', 0);
+
+    if ($refresh and REQUEST_TIME - $refresh > 3600) {
+      module_load_include('inc', 'apachesolr', 'apachesolr.index');
+      $env_id = apachesolr_default_environment();
+      apachesolr_index_delete_index($env_id);
+
+      variable_set('solr_search_panel_refresh_solr_index', 0);
+
+      watchdog('Apache Solr refresh', 'Ran full solr refresh due to missing file(s).');
+    }
+  }
+}

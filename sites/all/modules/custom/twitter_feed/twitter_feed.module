@@ -1,0 +1,246 @@
+<?php
+
+/**
+ * @file
+ * Code for the Twitter Feed.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function twitter_feed_menu() {
+  $items['admin/dashboard/settings/twitter-feed'] = array(
+    'title' => 'Twitter Feed',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('twitter_feed_settings_form'),
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 6,
+  );
+
+  return $items;
+}
+
+/**
+ *  Callback for menu admin/dashboard/settings/twitter-feed.
+ */
+function twitter_feed_settings_form() {
+  $form['dlaw_twitter_feed_twitter_user'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Twitter Username'),
+    '#default_value' => variable_get('dlaw_twitter_feed_twitter_user', ''),
+  );
+
+  $form['dlaw_twitter_number_of_tweets'] = array(
+    '#type' => 'select',
+    '#title' => t('Number of tweets to display'),
+    '#default_value' => variable_get('dlaw_twitter_number_of_tweets', 3),
+    '#options' => drupal_map_assoc(array(3, 5, 7, 10)),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save settings',
+  );
+
+  return $form;
+}
+
+/**
+ * Validate handler for twitter_feed_settings_form().
+ */
+function twitter_feed_settings_form_validate($form, $form_state) {
+  $values = $form_state['values'];
+
+  if (strpos($values['dlaw_twitter_feed_twitter_user'], '/')) {
+    form_set_error('dlaw_twitter_feed_twitter_user', 'Do not enter full URL. Just enter twitter username.');
+  }
+}
+
+/**
+ * Submit handler for twitter_feed_settings_form().
+ */
+function twitter_feed_settings_form_submit($form, $form_state) {
+  $values = $form_state['values'];
+  variable_set('dlaw_twitter_feed_twitter_user', $values['dlaw_twitter_feed_twitter_user']);
+  variable_set('dlaw_twitter_number_of_tweets', $values['dlaw_twitter_number_of_tweets']);
+
+  drupal_set_message('Settings saved successfully.');
+}
+
+/**
+ *	Implements hook_theme().
+ */
+function twitter_feed_theme($existing, $type, $theme, $path) {
+	return array(
+		'twitter_feed_block' => array(
+			'variables' => array('classes_array' => array('twitter_feed_block', 'block'),
+			  'attributes_array' => array(),
+			  'title_attributes_array' => array(),
+			  'content_attributes_array' => array(),),
+			'path' => $path . '/templates',
+			'template' => 'twitter_feed_block',
+			'preprocess functions' => array(
+				'twitter_feed_preprocess_block',
+			),
+		),
+	);
+}
+
+/**
+ *	Preprocess for twitter_feed.tpl.php
+ */
+function twitter_feed_preprocess_block(&$vars) {
+  if ($vars['theme_hook_original'] == 'twitter_feed_block') {
+    $twitter_user = variable_get('dlaw_twitter_feed_twitter_user', '');
+
+    if (!empty($twitter_user) and !strpos($twitter_user, '/')) {
+      $number_of_tweets = variable_get('dlaw_twitter_number_of_tweets', 3);
+
+      drupal_add_css(drupal_get_path('module', 'twitter_feed') . '/css/style.css');
+
+      $vars['twitter_user'] = $twitter_user;
+      $vars['number_of_tweets'] = $number_of_tweets;
+    }
+  }
+}
+
+/**
+ *	Implements hook_block_info().
+ */
+function twitter_feed_block_info() {
+	$blocks['twitter_feed'] = array(
+		'info' => t('Twitter Feed'),
+		'cache' => DRUPAL_CACHE_GLOBAL,
+	);
+
+	return $blocks;
+}
+
+/**
+ *	Implements hook_block_view().
+ */
+function twitter_feed_block_view($delta = '') {
+	$block = array();
+	if ($delta == 'twitter_feed') {
+		$block['subject'] = 'Twitter Feed';
+		$block['content'] = theme('twitter_feed_block', array());
+	}
+
+	return $block;
+}
+
+/**
+ * Helper function.
+ * Pulls twitter messages.
+ */
+function _dlaw_pull_twitter_feed($screen_name, $limit = 10) {
+  $data = array();
+
+  if ($cached = cache_get('_dlaw_twitter_feed', 'cache'))  {
+    $data = $cached->data;
+  }
+
+  if (count($data) == 0) {
+    module_load_include('php', 'twitter_feed', 'twitter_api/TwitterAPIExchange');
+
+    // See README.txt to set twitter config values.
+    if (!$settings = variable_get('twitter_feed_cfg', array())) {
+      return array();
+    }
+
+    /** Perform a GET request and echo the response **/
+    /** Note: Set the GET field BEFORE calling buildOauth(); **/
+    $url = 'https://api.twitter.com/1.1/followers/ids.json';
+    $getfield = '?screen_name=' . $screen_name;
+    $requestMethod = 'GET';
+    $twitter = new TwitterAPIExchange($settings);
+    $json = $twitter->setGetfield($getfield)
+              ->buildOauth($url, $requestMethod)
+              ->performRequest();
+
+    $json_decoded = drupal_json_decode($json);
+    $followers_count = isset($json_decoded['ids']) ? count($json_decoded['ids']) : 0;
+
+    $url = 'https://api.twitter.com/1.1/statuses/user_timeline.json';
+    $getfield = '?screen_name=' . $screen_name;
+    $requestMethod = 'GET';
+    $twitter = new TwitterAPIExchange($settings);
+    $json = $twitter->setGetfield($getfield)
+              ->buildOauth($url, $requestMethod)
+              ->performRequest();
+
+    $json_decoded = drupal_json_decode($json);
+
+    $count = 0;
+
+    foreach ($json_decoded as $status) {
+      if ($count < $limit) {
+        $data[] = array(
+          'text' => _dlaw_linkify_twitter_feed($status['text']),
+          'id' => $status['id'],
+          'time' => _dlaw_twitter_post_time_ago(strtotime($status['created_at'])),
+          'total_followers' => $followers_count,
+        );
+      }
+      $count++;
+    }
+    cache_set('_dlaw_twitter_feed', $data, 'cache', 60 * 60);
+  }
+
+  return $data;
+}
+
+/**
+ * Convert nested URLs, account names and hash tags into links.
+ */
+function _dlaw_linkify_twitter_feed($status_text) {
+  // Linkify URLs.
+  $status_text = preg_replace(
+    '/(https?:\/\/\S+)/',
+    '<a href="\1">\1</a>',
+    $status_text
+  );
+
+  // Linkify twitter users.
+  $status_text = preg_replace(
+    '/(^|\s)@(\w+)/',
+    '\1@<a href="http://twitter.com/\2">\2</a>',
+    $status_text
+  );
+
+  // Linkify tags.
+  $status_text = preg_replace(
+    '/(^|\s)#([\wåäöÅÄÖ]+)/',
+    '\1#<a href="http://search.twitter.com/search?q=%23\2">\2</a>',
+    $status_text
+  );
+
+  return $status_text;
+}
+
+/**
+ * Format twitter post time.
+ */
+function _dlaw_twitter_post_time_ago($timestamp) {
+  $output = '';
+
+  if ($timestamp > 1) {
+    $difference = time() - $timestamp;
+    $periods = array('second', 'minute', 'hour', 'day', 'week', 'month', 'year', 'decade');
+    $lengths = array('60', '60', '24', '7', '4.35', '12', '10');
+
+    for ($j = 0; $difference >= $lengths[$j] && $j < 7; $j++) {
+      $difference /= $lengths[$j];
+    }
+
+    $difference = round($difference);
+
+    if ($difference != 1) {
+      $periods[$j] .= "s";
+    }
+
+    $output = "$difference $periods[$j] ago";
+  }
+  return $output;
+}

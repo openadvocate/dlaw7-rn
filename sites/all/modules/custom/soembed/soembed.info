@@ -1,0 +1,4 @@
+name = Simple oEmbed
+description = oEmbed filter to let you embed rich media by URL.
+core = 7.x
+version = 7.x-1.0-b2ui

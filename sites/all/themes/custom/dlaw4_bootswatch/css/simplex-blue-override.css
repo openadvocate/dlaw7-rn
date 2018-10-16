@@ -1,0 +1,101 @@
+.form-control {
+  color: #333333; }
+
+.nav-tabs > li.active > a, .nav-tabs > li.active > a:hover, .nav-tabs > li.active > a:focus {
+  color: #333333; }
+
+body {
+  color: #333333; }
+
+a:link, a:visited, a:active, a:focus {
+  color: #006688; }
+
+a:hover {
+  color: #004055; }
+
+a.carousel-control {
+  color: #fff; }
+
+a:visited {
+  color: #004055; }
+
+.navbar-default .navbar-nav > li > a:hover {
+  color: #004055;
+  text-decoration: none; }
+
+.navbar-default .navbar-nav > .active > a,
+.navbar-default .navbar-nav > .active > a:link,
+.navbar-default .navbar-nav > .active > a:visited,
+.navbar-default .navbar-nav > .active > a:active,
+.navbar-default .navbar-nav > .active > a:focus {
+  color: #333333; }
+
+.navbar-default .navbar-nav > .active > a:hover {
+  color: #004055;
+  text-decoration: none; }
+
+.pagination > li > a, .pagination > li > span,
+.pagination > li > a:link, .pagination > li > span:link,
+.pagination > li > a:visited, .pagination > li > span:visited,
+.pagination > li > a:active, .pagination > li > span:active,
+.pagination > li > a:focus, .pagination > li > span:focus {
+  color: #006688;
+  background: #fff;
+  border: 1px solid #dddddd; }
+  .pagination > li > a:hover, .pagination > li > span:hover,
+  .pagination > li > a:link:hover, .pagination > li > span:link:hover,
+  .pagination > li > a:visited:hover, .pagination > li > span:visited:hover,
+  .pagination > li > a:active:hover, .pagination > li > span:active:hover,
+  .pagination > li > a:focus:hover, .pagination > li > span:focus:hover {
+    border: 1px solid #dddddd;
+    text-decoration: none;
+    background: #006688;
+    color: #fff; }
+
+.pagination > li.active > a,
+.pagination > li.active > span,
+.pagination > li.active > a:hover,
+.pagination > li.active > span:hover,
+.pagination > li.active > a:focus,
+.pagination > li.active > span:focus {
+  border: 1px solid #dddddd;
+  background: #006688;
+  color: #fff; }
+  .pagination > li.active > a:hover,
+  .pagination > li.active > span:hover,
+  .pagination > li.active > a:hover:hover,
+  .pagination > li.active > span:hover:hover,
+  .pagination > li.active > a:focus:hover,
+  .pagination > li.active > span:focus:hover {
+    border: 1px solid #dddddd;
+    text-decoration: none;
+    background: #006688;
+    color: #fff; }
+
+.btn, .btn:link, .btn:visited, .btn:active, .btn:hover, .btn:focus,
+a.btn, a.btn:link, a.btn:visited, a.btn:active, a.btn:hover, a.btn:focus {
+  color: #fff; }
+
+.btn-primary, .btn-primary:link, .btn-primary:visited, .btn-primary:active, .btn-primary:hover, .btn-primary:focus,
+a.btn-primary, a.btn-primary:link, a.btn-primary:visited, a.btn-primary:active, a.btn-primary:hover, a.btn-primary:focus {
+  background-color: #006688;
+  border-color: #006688;
+  background-image: none; }
+  .btn-primary:hover, .btn-primary:link:hover, .btn-primary:visited:hover, .btn-primary:active:hover, .btn-primary:hover:hover, .btn-primary:focus:hover,
+  a.btn-primary:hover, a.btn-primary:link:hover, a.btn-primary:visited:hover, a.btn-primary:active:hover, a.btn-primary:hover:hover, a.btn-primary:focus:hover {
+    background: #004055; }
+
+#simple-toc li.active a, #simple-toc li.active a:hover {
+  border-left: 1px solid #006688;
+  color: #006688; }
+
+#simple-toc li a:hover {
+  color: #006688 !important; }
+
+#bottom-region a {
+  color: #0079a0; }
+#bottom-region .btn a,
+#bottom-region a.btn {
+  color: #fff; }
+
+/*# sourceMappingURL=simplex-blue-override.css.map */

@@ -1,0 +1,88 @@
+$linkcolor: #990000;
+
+
+a, .pagination > li > a, .pagination > li > span{
+  color: $linkcolor;
+  &:hover{
+    color: darken($linkcolor, 10%);
+  }
+}
+
+.form-control{
+  color: #333333;
+}
+
+.nav-tabs > li.active > a, .nav-tabs > li.active > a:hover, .nav-tabs > li.active > a:focus{
+  color: #333333;
+}
+
+.logotype-container{
+  line-height : 1.2em;
+}
+
+body{
+  color: #333333;
+}
+
+
+a:link, a:visited, a:active, a:focus{
+  color: $linkcolor;
+}
+a:hover{
+  color: darken($linkcolor, 10%);
+}
+
+.btn, .btn:link, .btn:visited, .btn:active, .btn:hover, .btn:focus,
+a.btn, a.btn:link, a.btn:visited, a.btn:active, a.btn:hover, a.btn:focus{
+  color: #fff;
+}
+
+.btn-primary, .btn-primary:link, .btn-primary:visited, .btn-primary:active, .btn-primary:hover, .btn-primary:focus,
+a.btn-primary, a.btn-primary:link, a.btn-primary:visited, a.btn-primary:active, a.btn-primary:hover, a.btn-primary:focus{
+  background-color: $linkcolor;
+  border-color: $linkcolor;
+  color: #fff;
+
+  &:hover{
+    color: #fff;
+  }
+
+  .active{
+    color: #fff;
+    background-color: $linkcolor;
+  }
+
+}
+
+.btn-primary:hover{
+  background-color: darken($linkcolor, 10%);
+}
+
+// .btn-primary {
+//   color: #fff;
+//   background-color: $linkcolor;
+//   .active{
+//     color: #fff;
+//     background-color: $linkcolor;
+//   }
+//   &:hover{
+//     color: #fff;
+//     color: darken($linkcolor, 10%);
+//   }
+// }
+
+ #simple-toc li.active{
+  a, a:hover{
+    border-left: 1px solid $linkcolor;
+    color: $linkcolor;
+  }
+}
+#simple-toc li{
+  a:hover{
+    color: $linkcolor !important;
+  }
+}
+
+.btn-default{
+  background-color: #767676;
+}

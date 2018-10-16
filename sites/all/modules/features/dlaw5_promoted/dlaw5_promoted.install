@@ -1,0 +1,18 @@
+<?php
+
+/**
+ * @file
+ * Installation functions for dlaw5_promoted module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function dlaw5_promoted_install() {
+  // Set higher bias value to content's 'promote to front' flag.
+  apachesolr_environment_variable_set(
+    apachesolr_default_environment(),
+    'apachesolr_search_promote_boost',
+    '8.0'
+  );
+}

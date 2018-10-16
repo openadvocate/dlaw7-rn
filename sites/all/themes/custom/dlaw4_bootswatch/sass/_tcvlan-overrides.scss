@@ -1,0 +1,62 @@
+// Hide second set of buttons on node add/edit page, as it shows right above the
+// first set when there is no vertical tabs.
+.page-node-add, .page-node-edit {
+  #edit-actions-another {
+    display: none;
+  }
+}
+
+// Hide link "Go back to form" on join request submission page.
+#block-system-main {
+  .webform-confirmation + .links {
+    display: none;
+  }
+}
+
+// Hide action links (Download PDF, Print) on /node/87/submission/123 page
+.page-node-submission {
+  ul.webform-submission-actions {
+    display: none;
+  }
+}
+
+.page-user{
+  .user-picture{
+    padding-bottom: 20px;
+  }
+  .field{
+    padding-bottom: 2px;
+  }
+  .field-label{
+    font-weight: normal;
+    display: inline-block;
+    width: 130px;
+    color: #888;
+  }
+  .field-items{
+    display: inline-block;
+  }
+}
+
+.node-type-partner{
+  .pane-dlaw-partner-dlaw-partner-who-serve,
+  .pane-node-field-partner-legal-services,
+  .pane-node-field-partner-non-legal-services {
+    .pane-content{
+      .field-label{
+        float: unset;
+        display: block;
+      }
+      .field-items{
+        float: unset;
+        column-count: 2;
+        column-gap: 30px;
+        display: block;
+        .field-item{
+          float: unset;
+          display: block;
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,287 @@
+<?php
+
+/**
+ * @file
+ * Appearance (theme switcher) for DLAW settings.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function dlawsettings_appearance_menu() {
+  $items['admin/dashboard/appearance/themes'] = array(
+    'title' => 'Themes',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('dlawsettings_appearance_settings_form'),
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 4,
+  );
+
+  return $items;
+}
+
+function array_sort_by_column(&$arr, $col, $dir = SORT_ASC) {
+    $sort_col = array();
+    foreach ($arr as $key=> $row) {
+        $sort_col[$key] = $row[$col];
+    }
+
+    array_multisort($sort_col, $dir, $arr);
+}
+
+
+function dlawsettings_appearance_settings_form() {
+  
+  drupal_add_css(drupal_get_path('module', 'dlawsettings_appearance') . '/css/dlawsettings_appearance.css');
+  // drupal_add_js(drupal_get_path('module', 'dlawsettings_appearance') . '/js/jquery.elevateZoom-3.0.8.min.js');
+  drupal_add_js(drupal_get_path('module', 'dlawsettings_appearance') . '/js/dlawsettings_appearance.js');
+
+  $themes = array();
+  foreach (list_themes(TRUE) as $theme) {
+    if ($theme->status) {
+      $themes[$theme->name] = $theme->info['name'];
+    }
+  }
+
+  $color_variations = dlawsettings_appearance_color_schemas();
+  // ksort($color_variations);
+
+  array_sort_by_column($color_variations, 'name');
+
+
+  $form['item']['table_start'] = array(
+    '#markup' => '<div class="row">'
+  );
+
+  $default_color_schema = variable_get('theme_color_schema', 'cosmo');
+
+
+  foreach ($color_variations as $machine_name => $info) {
+
+    $activeclass = strcasecmp($info['name'], $default_color_schema) ? '':'active';
+    $selectedclass = strcasecmp($info['name'], $default_color_schema) ? '':'selected';
+
+    $form['item']['tr_start_' . $machine_name] = array('#markup' => '
+    <div class="col-sm-6 col-md-4 col-lg-3 theme-item-holder ' . $activeclass . '">
+      <div class="thumbnail ' . $selectedclass . '" style="height: 310px;">');                                                      //-- begin element
+
+
+    $image = '';
+    if (file_exists($info['screenshot'])) {
+      $image = '<div class="text-center" style="height:245px;"><img style="display:inline; border:1px solid rgba(0,0,0, 0.3);" src="' . base_path() . $info['screenshot'] . '?a" width="240" height="" border="0"></div>';
+    }else{
+      $image = '<div class="text-center" style="height:245px;"><img style="display:inline; border:1px solid rgba(0,0,0, 0.3);" src="http://placehold.it/240x240"></div>';
+    }
+
+    $form['item']['item_' . $machine_name] = array('#markup' => '' . $image . '');
+
+    $form['item'][$machine_name]['color_schema'] = array(
+      '#type' => 'radio',
+      '#title' => $info['name'],
+      '#return_value' => $machine_name,
+      '#prefix' => '<div class="caption"><h4 class="text-center">',
+      '#suffix' => '</h4>',
+      '#default_value' => !empty($default_color_schema) ? $default_color_schema : 'cosmo',
+    );
+
+    $form['item']['item2_' . $machine_name] = array('#markup' => '<div class="desciption">' . $info['description'] . '</div> </div>');
+
+    $form['item']['tr_end_' . $machine_name] = array('#markup' => '</div> </div>'); //-- end element
+  }
+
+
+  $form['item']['table_end'] = array('#markup' => '</div>');
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save settings',
+  );
+  
+  return $form;
+}
+
+function dlawsettings_appearance_settings_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+
+  variable_set('theme_default', 'dlaw4_bootswatch');
+  variable_set('theme_color_schema', $values['color_schema']);
+  drupal_set_message('Appearance settings have been saved.', 'status');
+}
+
+function dlawsettings_appearance_color_schemas() {
+  return array(
+
+    'default' => array(
+      'name' => 'Sky',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/dlawblue.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/_sky-default/less/bootstrap.css'),
+    ),
+
+    'defaultred' => array(
+      'name' => 'Sunset',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/dlaw_red.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/_sunset-defaultred/less/bootstrap.css'),
+    ),
+
+    'defaultgreen' => array(
+      'name' => 'Forest',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/dlaw_green.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/_forest-defaultgreen/less/bootstrap.css'),
+    ),
+
+    'yeti' => array(
+      'name' => 'Mountain',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/yeti.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/_mountain-yeti/less/bootstrap.css'),
+    ),
+
+    'lumen' => array(
+      'name' => 'Lux',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/lumen.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/_lux-lumen/less/bootstrap.css'),
+    ),
+
+    'cosmo' => array(
+      'name' => 'Cosmos',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/cosmo.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/_cosmo-cosmos/less/bootstrap.css'),
+    ),
+
+    'readable' => array(
+      'name' => 'Clarity',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/readable.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/_readable-clarity/less/bootstrap.css'),
+    ),
+
+    'spacelab' => array(
+      'name' => 'Space',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/spacelab.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/_spacelab-space/less/bootstrap.css'),
+    ),
+
+    'journal' => array(
+      'name' => 'Magazine',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/journal.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/_journal-magazine/less/bootstrap.css'),
+    ),
+
+    'simplex' => array(
+      'name' => 'Singular',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/simplex.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/_singular-simplex/less/bootstrap.css'),
+    ),
+
+
+    'simplexblue' => array(
+      'name' => 'Sincere',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/simplex-blue.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/_simplexblue-sincere/less/bootstrap.css'),
+    ),
+
+    'cerulean' => array(
+      'name' => 'Azure',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/cerulean.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/_cerulean-azure/less/bootstrap.css'),
+    ),
+
+/*
+    'united' => array(
+      'name' => 'United',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/united.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/united.min.css',
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/united-override.css'),
+    ),
+      
+    'spruce' => array(
+      'name' => 'Spruce',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/spruce.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/spruce.min.css',
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/spruce-override.css'),
+    ),
+
+    'superhero' => array(
+      'name' => 'Superhero',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/superhero.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/superhero.min.css',
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/superhero-override.css'),
+    ),
+    
+    'slate' => array(
+      'name' => 'Slate',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/slate.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/slate.min.css',
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/slate-override.css'),
+    ),
+
+    'flatly' => array(
+      'name' => 'Flatly',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/flatly.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/flatly.min.css',
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/flatly-override.css'),
+    ),
+
+    'amelia' => array(
+      'name' => 'Amelia',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/amelia.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/amelia.min.css',
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/amelia-override.css'),
+    ),
+
+    'cyborg' => array(
+      'name' => 'Cyborg',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/cyborg.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/cyborg.min.css',
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/cyborg-override.css'),
+    ),
+
+    'darkly' => array(
+      'name' => 'Darkly',
+      'description' => '',
+      'screenshot' => drupal_get_path('module', 'dlawsettings_appearance') . '/images/screenshots/darkly.png',
+      'css' => array(
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/darkly.min.css',
+        drupal_get_path('theme', 'dlaw4_bootswatch') . '/css/darkly-override.css'),
+    ),
+*/    
+
+  );
+}

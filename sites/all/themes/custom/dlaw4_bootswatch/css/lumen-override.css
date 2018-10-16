@@ -1,0 +1,25 @@
+.form-control {
+  color: #333333; }
+
+.nav-tabs > li.active > a, .nav-tabs > li.active > a:hover, .nav-tabs > li.active > a:focus {
+  color: #333333; }
+
+body {
+  color: #333333; }
+
+.field-name-field-attachments a, .field-name-field-links a {
+  text-decoration: none; }
+  .field-name-field-attachments a:hover, .field-name-field-links a:hover {
+    text-decoration: underline; }
+
+.btn-info {
+  background: #00819f;
+  border-color: #006179; }
+  .btn-info:focus, .btn-info:active, .btn-info:hover {
+    background: #0096b8;
+    border-color: #007593; }
+
+a:visited {
+  color: #106a8c; }
+
+/*# sourceMappingURL=lumen-override.css.map */

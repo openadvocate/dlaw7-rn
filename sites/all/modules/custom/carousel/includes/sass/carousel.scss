@@ -1,0 +1,75 @@
+.carousel-inner{
+
+  .item{
+    a.row{
+      display: block;
+    }
+    .carousel-text{
+    }
+    img{      
+      background: none repeat scroll 0 0 #FFFFFF;
+      height: auto;
+      max-width: 100%;
+      transition: opacity 0.4s ease 0s;
+      opacity: 0.90;
+      &:hover{        
+        // box-shadow: 0px 0px 2px 1px rgba(0,0,0,0.2);
+        opacity: 1;
+      }
+    }
+  }
+}
+
+
+
+//---------------------------------------------------------------------------- SMALL and DOWN ------ [ < 768px ]
+@media (max-width: 768px) { 
+
+  .carousel-inner{
+    .item {
+      display: block;
+      .col-sm-4{
+        padding-bottom: 25px; 
+        .col-xs-7{
+          padding-left: 0;
+          text-align: left;
+        }
+        .col-xs-5{
+        }
+      }
+      &:last-child{
+       .col-sm-4{
+          &:last-child{
+            padding-bottom: 5px;
+          }
+        } 
+      }
+      h4{
+        font-size: 22px;
+        line-height: 28px;
+        margin: 0;
+      }
+    }
+  }
+
+  #carousel-region{
+    .carousel-control{
+      display: none;
+    }
+  }
+
+}
+//---------------------------------------------------------------------------- SMALL and DOWN ------ [ < 768px ]
+@media (max-width: 480px) { 
+
+  .carousel-inner{
+    .item {      
+      h4{
+        font-size: 16px;
+        line-height: 18px;
+        margin: 0;
+      }
+    }
+  }
+
+}

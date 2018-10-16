@@ -1,0 +1,10 @@
+name = "LiveChat"
+description = "LiveChat integration"
+core = "7.x"
+
+; Information added by Drupal.org packaging script on 2016-03-04
+version = "7.x-1.2"
+core = "7.x"
+project = "livechat"
+datestamp = "1457095742"
+

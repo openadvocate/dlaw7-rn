@@ -1,0 +1,25 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for seclogin module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function seclogin_install() {
+  db_update('system')
+    ->fields(array('weight' => -1))
+    ->condition('name', 'seclogin')
+    ->execute();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function seclogin_uninstall() {
+  variable_del('seclogin_active');
+  variable_del('seclogin_ssl_domain');
+  variable_del('seclogin_regular_domain');
+}

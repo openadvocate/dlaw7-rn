@@ -1,0 +1,41 @@
+.methyl_wrapper{
+
+}
+.methyl_yellow_indicator {
+  position:relative;
+  z-index: 300;
+  margin: 0px;
+  padding: 0px;
+}
+.methyl_yellow_indicator.affix {
+    position: fixed;
+    top: 29px;
+}
+.unpublished_indicator{
+  line-height: 44px;
+  color: #54616a;
+  font-family: "Lato","Open Sans",Helvetica,Arial,sans-serif;
+  font-weight: 400;
+
+  font-size: 20px;
+  text-align: center;
+  padding-bottom: 12px;
+  padding-top: 10px;
+  color: rgb(128, 128, 128);
+  background: none repeat scroll 0px 0px rgb(255, 255, 229);
+  margin: 0px;
+  opacity: 0.93;
+  border: 1px solid #ddd;
+}
+/*
+.bottom_border{
+  height:4px;
+  background: #e9e9ac;
+  background: #d8d890;
+  opacity: 0.5;
+}
+*/
+
+.methyl_yellow_indicator.affix .unpublished_indicator{
+  line-height: 16px;
+}

@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Schema.org feature feature.
+ */
+
+include_once 'dlaw4_schema_org.features.inc';

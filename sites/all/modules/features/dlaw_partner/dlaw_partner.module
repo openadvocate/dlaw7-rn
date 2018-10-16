@@ -1,0 +1,979 @@
+<?php
+/**
+ * @file
+ * Code for the Partner feature.
+ */
+
+include_once 'dlaw_partner.features.inc';
+
+// Includes the Block hooks
+require_once 'dlaw_partner.block.inc';
+
+// From webform 'Join Request'
+define('TCVLAN_USER_FNAME',      5);
+define('TCVLAN_USER_LNAME',      8);
+define('TCVLAN_USER_NAME',       1);
+define('TCVLAN_USER_EMAIL',      3);
+define('TCVLAN_USER_PHONE',      4);
+define('TCVLAN_USER_TITLE',      6);
+define('TCVLAN_USER_ORG',        2);
+define('TCVLAN_USER_ORGID',      7);
+define('TCVLAN_USER_PROFESSION', 9);
+
+define('TCVLAN_ORG_NAME',        1);
+define('TCVLAN_ORG_EMAIL',       2);
+define('TCVLAN_ORG_PHONE',       3);
+define('TCVLAN_ORG_ORG_NAME',    4);
+define('TCVLAN_ORG_ADDRESS',     5);
+define('TCVLAN_ORG_CITY',        6);
+define('TCVLAN_ORG_STATE',       7);
+define('TCVLAN_ORG_ZIP',         8);
+define('TCVLAN_ORG_DESC',        9);
+define('TCVLAN_ORG_ORG_ID',     10);
+
+define('TCVLAN_NETUSER_ROLE_ID', 5);
+
+/**
+ * Implements hook_user_view_alter().
+ *
+ * Show Partner add/view button on user profile.
+ * Add edit link.
+ */
+function dlaw_partner_user_view_alter(&$build) {
+  global $user;
+  $account = $build['#account'];
+
+  // Only managers can see phone number.
+  if (!user_access('administer users') and $user->uid != $account->uid) {
+    $build['field_user_phone']['#access'] = FALSE;
+  }
+
+  // Hide 'History: Member for...'
+  if (isset($build['summary'])) {
+    $build['summary']['#access'] = FALSE;
+  }
+
+  // Link Org name.
+  if (!empty($build['field_user_organization'])) {
+    $org = $build['field_user_organization'][0]['#item']['entity'];
+
+    $build['field_user_organization'][0] = array(
+      '#markup' => l($org->title, "node/$org->nid"),
+    );
+  }
+}
+
+/**
+ * Implements hook_node_access().
+ */
+function dlaw_partner_node_access($node, $op, $account) {
+  $type = is_string($node) ? $node : $node->type;
+
+  // Network user can only update Organization he belongs to.
+  if ($type == 'partner' and $op == 'update' and !user_access('administer users')) {
+    $account_w_fields = user_load($account->uid);
+
+    $my_org_nid = 0;
+    if (!empty($account_w_fields->field_user_organization[LANGUAGE_NONE][0]['target_id'])) {
+      $my_org_nid = $account_w_fields->field_user_organization[LANGUAGE_NONE][0]['target_id'];
+    }
+
+    if ($node->nid != $my_org_nid) {
+      return NODE_ACCESS_DENY;
+    }
+  }
+
+  return NODE_ACCESS_IGNORE;
+}
+
+/**
+ * Used for access control (using PHP) in paneled page, org_dashboard.
+ */
+function dlaw_partner_org_dashboard_access($contexts) {
+  global $user;
+
+  if (isset($contexts['argument_entity_id:node_1'])) {
+    $node = $contexts['argument_entity_id:node_1']->data;
+
+    if (!user_is_anonymous() and $node->type == 'partner') {
+      // Manager
+      if (user_access('create partner content')) {
+        return TRUE;
+      }
+      // Org member
+      else {
+        $account_w_fields = user_load($user->uid);
+
+        $my_org_nid = 0;
+        if (!empty($account_w_fields->field_user_organization[LANGUAGE_NONE][0]['target_id'])) {
+          $my_org_nid = $account_w_fields->field_user_organization[LANGUAGE_NONE][0]['target_id'];
+        }
+
+        if ($node->nid == $my_org_nid) {
+          return TRUE;
+        }
+      }
+    }
+  }
+
+  return FALSE;
+}
+
+/**
+ * Implements hook_webform_submission_presave().
+ */
+function dlaw_partner_webform_submission_presave($node, &$submission) {
+  if (strpos($node->title, 'Join') === 0) {
+    $fname = $submission->data[TCVLAN_USER_FNAME][0];
+    $lname = $submission->data[TCVLAN_USER_LNAME][0];
+    $name = trim($fname) . ' ' . trim($lname);
+    $submission->data[TCVLAN_USER_NAME][0] = $name;
+  }
+}
+
+/**
+ * Implements hook_webform_submission_render_alter().
+ */
+function dlaw_partner_webform_submission_render_alter(&$renderable) {
+  if (strpos($renderable['#node']->title, 'Join') !== FALSE) {
+    $renderable['actions'] = drupal_get_form('dlaw_partner_request_submission_form')
+                           + array('#weight' => -1);
+
+    // Additional fields not part of user submission. Used simpler #markup
+    // instead of full render array using theme functions or templates.
+    $renderable['date'] = array(
+      '#markup' => '<div class="form-item webform-component webform-component-display">
+          <label>Date </label>' . date('F j, Y - h:i a', $renderable['#submission']->submitted) . '</div>',
+      '#weight' => 20,
+    );
+
+    $renderable['ip'] = array(
+      '#markup' => '<div class="form-item webform-component webform-component-display">
+          <label>IP </label>' . $renderable['#submission']->remote_addr . '</div>',
+      '#weight' => 21,
+    );
+  }
+  elseif (strpos($renderable['#node']->title, 'Organization') !== FALSE) {
+    $renderable['actions'] = drupal_get_form('dlaw_partner_org_request_submission_form')
+                           + array('#weight' => -1);
+  }
+}
+
+/**
+ * Form to be added to submission page (e.g. /node/2/submission/6)
+ *
+ * @see dlaw_partner_webform_submission_render_alter().
+ */
+function dlaw_partner_request_submission_form($form, $form_state) {
+  $nid = arg(1);
+  $sid = arg(3);
+
+  if (!(is_numeric($nid) and is_numeric($sid))) {
+    return [];
+  }
+
+  if (!$submission = webform_get_submission($nid, $sid)) {
+    return [];
+  }
+
+  // Check $form_state['input'] so drupal message does not appear after submit.
+  if (empty($form_state['input'])) {
+    $name = $submission->data[TCVLAN_USER_NAME][0];
+    $mail = $submission->data[TCVLAN_USER_EMAIL][0];
+
+    if (!empty($submission->uid)) {
+      $disable = TRUE;
+      $acc = user_load($submission->uid);
+      drupal_set_message("The submission has been approved as " . l($acc->name, "user/$acc->uid") . '.');
+    }
+    elseif (user_load_by_mail($mail)) {
+      $disable = TRUE;
+      drupal_set_message("A user with the same email exists.", 'warning');
+    }
+    elseif (user_load_by_name($name)) {
+      drupal_set_message("As the username already exists, a number will be added to the name upon approval to make it unique. The user will get a chance to change the username later. If you believe the user already has an account, let them know.", 'warning');
+    }
+  }
+
+  $info = '';
+
+  if ($org_nid = $submission->data[TCVLAN_USER_ORGID][0]) {
+    $org = node_load($org_nid);
+
+    // Organization info.
+    $query = db_select('field_data_field_user_organization', 'o');
+    $query->join('users', 'u', 'o.entity_id = u.uid');
+    $query->fields('u', array('uid', 'name', 'mail'));
+
+    $query->leftJoin('field_data_field_user_phone', 'p', 'u.uid = p.entity_id');
+    $query->addField('p', 'field_user_phone_value', 'phone');
+
+    $query->condition('o.field_user_organization_target_id', $org->nid);
+    $query->orderBy('u.name');
+    $result = $query->execute();
+
+    $rows = array();
+    foreach ($result as $row) {
+      $name = $row->name;
+
+      $prim_cont = '';;
+      if (!empty($org->field_partner_contact[LANGUAGE_NONE][0]['target_id'])) {
+        if ($org->field_partner_contact[LANGUAGE_NONE][0]['target_id'] == $row->uid) {
+          $prim_cont = '* ';
+        }
+      }
+
+      $rows[] = array(
+        $prim_cont . l($name, "user/$row->uid"),
+        l($row->phone, 'tel:' . $row->phone),
+        l($row->mail, 'mailto:' . $row->mail),
+      );
+    }
+
+    $header = array('Name', 'Phone', 'Email');
+
+    if ($rows) {
+      $info = theme('table', array('header' => $header, 'rows' => $rows,
+            'attributes' => array('class' => array('submission-org-info'))))
+            . '<small class="primary-contact-note pull-right">* Primary contact</small>';
+    }
+    else {
+      $info = '<p>No users yet. This request would make the first user.';
+    }
+  }
+  else {
+    drupal_set_message("Organization NID not specified and user account cannot be created.", 'warning');
+    $disable = TRUE;
+  }
+
+  if (!empty($submission->data[TCVLAN_USER_ORG][0])) {
+    $org_name = l($submission->data[TCVLAN_USER_ORG][0], "node/$org_nid");
+  }
+  else {
+    $org_name = 'N/A';
+  }
+
+  $org_info = '<div class="org_info">'
+            . '<h3>Organization info</h3>'
+            . '<div><span class="org_label">Name</span>: ' . $org_name . '<br></div>'
+            . '<div class="info">' . $info . '</div>'
+            . '</div>';
+
+  $form['org_info'] = array(
+    '#markup' => $org_info,
+    '#prefix' => '<div class="pull-right well">',
+    '#suffix' => '</div>',
+  );
+
+  // Notice on mismatching email and domain.
+  if (!empty($org->field_partner_website[LANGUAGE_NONE][0]['url'])) {
+    $website = $org->field_partner_website[LANGUAGE_NONE][0]['url'];
+    if (!strpos($website, '://')) {
+      $website = 'http://' . $website;
+    }
+    $parts = explode('.', parse_url($website, PHP_URL_HOST));
+    $domain = join('.', array_slice($parts, -2));
+
+    if (!empty($mail) and !strpos($mail, $domain)) {
+      drupal_set_message(t("Note the Organization's domain %domain does not match the user's email.", array('%domain' => $domain)), 'warning');
+    }
+  }
+
+  $form['approve'] = array(
+    '#type' => 'submit',
+    '#value' => 'Approve',
+    '#disabled' => !empty($disable) ? TRUE : FALSE,
+  );
+
+  $form['delete'] = array(
+    '#type' => 'submit',
+    '#value' => 'Delete',
+  );
+
+  $form['help'] = array(
+    '#markup' => '<div class="small"><b>Approve/Delete</b> will send notification to the applicant.'
+  );
+
+  $form['nid'] = array(
+    '#type' => 'hidden',
+    '#value' => $nid,
+  );
+
+  $form['sid'] = array(
+    '#type' => 'hidden',
+    '#value' => $sid,
+  );
+
+  // Confirm popup on the submit buttons.
+  $js = <<<EOD
+    (function ($) {
+      $(function() {
+        $('#edit-approve, #edit-delete').click(function() {
+          if (!confirm('Are you sure you want to ' + $(this).val().toLowerCase() + '?')) {
+            return false;
+          }
+        });
+      });
+    })(jQuery);
+EOD;
+  drupal_add_js($js, array('type' => 'inline'));
+
+  return $form;
+}
+
+/**
+ * Submit handler for dlaw_partner_request_submission_form().
+ */
+function dlaw_partner_request_submission_form_submit($form, $form_state) {
+  $values = $form_state['values'];
+  $nid = $values['nid'];
+  $sid = $values['sid'];
+
+  if ($values['op'] == 'Delete') {
+    dlaw_partner_delete_user($nid, $sid);
+  }
+  elseif ($values['op'] == 'Approve') {
+    dlaw_partner_approve_user($nid, $sid);
+  }
+}
+
+/**
+ * Helper to delete user for submission form submit handler.
+ */
+function dlaw_partner_delete_user($nid, $sid) {
+  if (is_numeric($nid) and is_numeric($sid)) {
+    $node = node_load($nid);
+    $submission = webform_get_submission($nid, $sid);
+    webform_submission_delete($node, $submission);
+    drupal_set_message(t('Join request by %name deleted.', array('%name' => $submission->data[TCVLAN_USER_NAME][0])));
+
+    // Send notification using PET module.
+    if (module_exists('pet')) {
+      $pet = pet_load('partner_join_request_denied');
+      $params = array(
+        'pet_from' => variable_get('site_mail', ''),
+        'pet_to' => $submission->data[TCVLAN_USER_EMAIL][0],
+      );
+
+      pet_send_one_mail($pet, $params);
+    }
+
+    // Will take effect if query destination is not set.
+    drupal_goto("node/$nid/webform-results");
+  }
+}
+
+/**
+ * Helper to approve user for submission form submit handler.
+ *
+ * Code borrowed from user_register_submit().
+ */
+function dlaw_partner_approve_user($nid, $sid) {
+  if (is_numeric($nid) and is_numeric($sid)) {
+    $submission = webform_get_submission($nid, $sid);
+
+    $name = $submission->data[TCVLAN_USER_NAME][0];
+    $mail = $submission->data[TCVLAN_USER_EMAIL][0];
+    $pass = user_password();
+    $form = $form_state = array();
+
+    $count = 2;
+    while (user_load_by_name($name)) {
+      $name .= " $count";
+      $count++;
+    }
+
+    $form_state['values']['name'] = $name;
+    $form_state['values']['mail'] = $mail;
+    $form_state['values']['pass'] = $pass;
+    $form_state['values']['init'] = $mail;
+
+    $account = drupal_anonymous_user();
+    $account->roles[TCVLAN_NETUSER_ROLE_ID] = 'network user';
+
+    $edit = array(
+      'name' => $name,
+      'mail' => $mail,
+      'pass' => $pass,
+      'init' => $mail,
+      'status' => 1,
+    );
+
+    if (!empty($submission->data[TCVLAN_USER_PHONE][0])) {
+      $account->field_user_phone[LANGUAGE_NONE][0]['value'] =
+      trim($submission->data[TCVLAN_USER_PHONE][0]);
+    }
+    if (!empty($submission->data[TCVLAN_USER_TITLE][0])) {
+      $account->field_user_job_title[LANGUAGE_NONE][0]['value'] =
+      trim($submission->data[TCVLAN_USER_TITLE][0]);
+    }
+    if (!empty($submission->data[TCVLAN_USER_PROFESSION][0])) {
+      $account->field_user_profession[LANGUAGE_NONE][0]['value'] =
+      trim($submission->data[TCVLAN_USER_PROFESSION][0]);
+    }
+    $org_nid = NULL;
+    if (!empty($submission->data[TCVLAN_USER_ORGID][0])) {
+      $org_nid = (int)trim($submission->data[TCVLAN_USER_ORGID][0]);
+      $account->field_user_organization[LANGUAGE_NONE][0]['target_id'] = $org_nid;
+    }
+
+    try {
+      $account = user_save($account, $edit);
+
+      // If the user is the first for the Org, set as primary contact.
+      if ($org_nid) {
+        $query = db_select('field_data_field_user_organization', 'o');
+        $query->condition('o.field_user_organization_target_id', $org_nid);
+        $count = $query->countQuery()->execute()->fetchField();
+
+        $org = node_load($org_nid);
+
+        if ($count < 2) {
+          $org->field_partner_contact[LANGUAGE_NONE][0]['target_id'] = $account->uid;
+
+          node_save($org);
+
+          drupal_set_message(t("As the first team member of !org, the account has been set as the primary contact.", array('!org' => l($org->title, "node/$org->nid"))));
+        }
+        elseif (empty($org->field_partner_contact[LANGUAGE_NONE][0]['target_id'])) {
+          drupal_set_message(t("!org still has not set a primary contact. Please choose one from the team members.", array('!org' => l($org->title, "node/$org->nid"))), 'warning');
+        }
+      }
+
+      // Update webform table with uid, which implies that the request got
+      // approved and got user id, so the record can be filtered out on join
+      // request queue on dashboard.
+      dlaw_partner_update_webform_uid($sid, $account->uid);
+    }
+    catch (Exception $e) {
+      $account = NULL;
+    }
+
+    // Terminate if an error occurred during user_save().
+    if (!$account) {
+      drupal_set_message(t("Error saving user account."), 'error');
+      return;
+    }
+
+    $form_state['user'] = $account;
+    $form_state['values']['uid'] = $account->uid;
+
+    watchdog('user', 'User approved and created: %name (%email).', array('%name' => $form_state['values']['name'], '%email' => $form_state['values']['mail']), WATCHDOG_NOTICE, l(t('edit'), 'user/' . $account->uid . '/edit'));
+
+    // Add plain text password into user account to generate mail tokens.
+    $account->password = $pass;
+
+    // New administrative account without notification.
+    $uri = entity_uri('user', $account);
+
+    _user_mail_notify('register_admin_created', $account);
+
+    drupal_set_message(t('A welcome message with further instructions has been e-mailed to the new user <a href="@url">%name</a>.', array('@url' => url($uri['path'], $uri['options']), '%name' => $account->name)));
+
+    // Will take effect if query destination is not set.
+    drupal_goto("node/$nid/webform-results");
+  }
+}
+
+/**
+ * Form to be added to submission page (e.g. /node/2/submission/6)
+ *
+ * @see dlaw_partner_webform_submission_render_alter().
+ */
+function dlaw_partner_org_request_submission_form($form, $form_state) {
+  $nid = arg(1);
+  $sid = arg(3);
+
+  if (!(is_numeric($nid) and is_numeric($sid))) {
+    return [];
+  }
+
+  if (!$submission = webform_get_submission($nid, $sid)) {
+    return [];
+  }
+
+  // Check $form_state['input'] so drupal message does not appear after submit.
+  if (empty($form_state['input'])) {
+    if (!empty($submission->data[TCVLAN_ORG_ORG_ID][0])) {
+      $org_nid = $submission->data[TCVLAN_ORG_ORG_ID][0];
+      $disable = TRUE;
+      drupal_set_message(t("The submission has been approved to create a new !org.", array(
+        '!org' => l('organization', "node/$org_nid")
+      )), 'warning');
+    }
+  }
+
+  $form['approve'] = array(
+    '#type' => 'submit',
+    '#value' => 'Approve',
+    '#disabled' => !empty($disable),
+  );
+
+  $form['delete'] = array(
+    '#type' => 'submit',
+    '#value' => 'Delete',
+    '#disabled' => !empty($disable),
+  );
+
+  $form['help'] = array(
+    '#markup' => '<div class="small"><b>Approve</b> will send notification to the applicant.'
+  );
+
+  $form['nid'] = array(
+    '#type' => 'hidden',
+    '#value' => $nid,
+  );
+
+  $form['sid'] = array(
+    '#type' => 'hidden',
+    '#value' => $sid,
+  );
+
+  // Confirm popup on the submit buttons.
+  $js = <<<EOD
+    (function ($) {
+      $(function() {
+        $('#edit-approve, #edit-delete').click(function() {
+          if (!confirm('Are you sure you want to ' + $(this).val().toLowerCase() + '?')) {
+            return false;
+          }
+        });
+      });
+    })(jQuery);
+EOD;
+  drupal_add_js($js, array('type' => 'inline'));
+
+  return $form;
+}
+
+/**
+ * Submit handler for dlaw_partner_request_submission_form().
+ */
+function dlaw_partner_org_request_submission_form_submit($form, $form_state) {
+  $values = $form_state['values'];
+  $nid = $values['nid'];
+  $sid = $values['sid'];
+
+  if ($values['op'] == 'Delete') {
+    dlaw_partner_delete_org_request($nid, $sid);
+  }
+  elseif ($values['op'] == 'Approve') {
+    dlaw_partner_approve_org_request($nid, $sid);
+  }
+}
+
+/**
+ * Helper to delete org request for submission form submit handler.
+ */
+function dlaw_partner_delete_org_request($nid, $sid) {
+  if (is_numeric($nid) and is_numeric($sid)) {
+    $node = node_load($nid);
+    $submission = webform_get_submission($nid, $sid);
+    webform_submission_delete($node, $submission);
+    drupal_set_message(t('Organization request by %name deleted.', array('%name' => $submission->data[TCVLAN_ORG_NAME][0])));
+
+    // Will take effect if query destination is not set.
+    drupal_goto("node/$nid/webform-results");
+  }
+}
+
+/**
+ * Helper to approve org request for submission form submit handler.
+ */
+function dlaw_partner_approve_org_request($nid, $sid) {
+  if (is_numeric($nid) and is_numeric($sid)) {
+    $submission = webform_get_submission($nid, $sid);
+
+    $org = new stdClass();
+    $org->language = LANGUAGE_NONE;
+    $org->type = 'partner';
+    $org->is_new = TRUE;
+    $org->title = trim($submission->data[TCVLAN_ORG_ORG_NAME][0]);
+
+    $org->field_partner_address[LANGUAGE_NONE][0] = array(
+      'country'      => 'US',
+      'administrative_area' => trim($submission->data[TCVLAN_ORG_STATE][0]),
+      'locality'     => trim($submission->data[TCVLAN_ORG_CITY][0]),
+      'thoroughfare' => trim($submission->data[TCVLAN_ORG_ADDRESS][0]),
+      'postal_code'  => trim($submission->data[TCVLAN_ORG_ZIP][0]),
+    );
+
+    $org->body[LANGUAGE_NONE][0] = array(
+      'value' => trim($submission->data[TCVLAN_ORG_DESC][0]),
+      'format' => 'filtered_html',
+    );
+
+    node_object_prepare($org);
+    node_save($org);
+
+    // Set the submission's org_id value, so it does not appear in the dashboard.
+    $submission->data[TCVLAN_ORG_ORG_ID][0] = $org->nid;
+    webform_submission_update(node_load($nid), $submission);
+
+    watchdog('tvclan', 'Organization request approved and created: %name.', array('%name' => $org->title), WATCHDOG_NOTICE);
+
+    // Send notification using PET module.
+    if (module_exists('pet')) {
+      $pet = pet_load('organization_request_approved');
+      $params = array(
+        'pet_from' => variable_get('site_mail', ''),
+        'pet_to' => $submission->data[TCVLAN_ORG_EMAIL][0],
+        'pet_nid' => $org->nid,
+      );
+
+      pet_send_one_mail($pet, $params);
+    }
+
+    drupal_set_message(t('A new organization <a href="@url">%name</a> has been created.', array('@url' => url("node/$org->nid"), '%name' => $org->title)));
+
+    // Will take effect if query destination is not set.
+    drupal_goto("node/$nid/webform-results");
+  }
+}
+
+/**
+ * Impelements hook_form_alter().
+ *
+ * Alters webform.
+ */
+function dlaw_partner_form_alter(&$form, &$form_state, $form_id) {
+  if ($form_id == dlaw_partner_request_form_id() and !arg(2)) {
+    // Reduce width to half.
+    $form['#prefix'] = '<div class="row"><div class="col-md-6">';
+    $form['#suffix'] = '</div></div>';
+
+    $form['submitted']['name']['#access'] = FALSE;
+    $form['submitted']['organization']['#disabled'] = TRUE;
+
+    if (user_is_anonymous()) {
+      $org_nid = !empty($_GET['orgid']) ? (int)$_GET['orgid'] : 0;
+
+      if ($org_nid and $org = node_load($org_nid) and $org->type == 'partner') {
+        $form['submitted']['organization']['#default_value'] = $org->title;
+        $form['submitted']['organization_nid']['#value'] = $org->nid;
+      }
+      else {
+        $form['actions']['submit']['#disabled'] = TRUE;
+        drupal_set_message('Organization not chosen. Please go to your Organization page and click Join button.', 'error');
+      }
+
+      if (isset($form['captcha'])) {
+        $form['captcha']['#prefix'] = '<hr>';
+      }
+
+      $form['#validate'][] = 'dlaw_partner_join_request_form_validate';
+    }
+    else {
+      $form['actions']['submit']['#disabled'] = TRUE;
+      drupal_set_message('You are already a logged-in user.');
+    }
+  }
+  elseif ($form_id == dlaw_partner_org_request_form_id() and !arg(2)) {
+    // Reduce width to half.
+    $form['#prefix'] = '<div class="row"><div class="col-md-6">';
+    $form['#suffix'] = '</div></div>';
+  }
+}
+
+function dlaw_partner_join_request_form_validate($form, $form_state) {
+  $email = $form_state['values']['submitted']['email'];
+
+  if (user_load_by_mail($email)) {
+    form_set_error('', t('User account with the email already exists. If you forgot the password, you can !reset.', array('!reset' => l('reset it here', 'user/password'))));
+  }
+}
+
+function dlaw_partner_update_webform_uid($sid, $uid) {
+  db_query("UPDATE webform_submissions SET uid = :uid
+    WHERE sid = :sid", array(':uid' => $uid, ':sid' => $sid));
+}
+
+/**
+ * Get Join Request form ID. Since webform is a node, the form ID is not fixed
+ * value and can change from site to site. Once determined, save it as vairable
+ * to enhance performance.
+ */
+function dlaw_partner_request_form_id() {
+  $form_id  = variable_get('dlaw_partner_request_form_id', '');
+  $form_nid = variable_get('dlaw_partner_request_form_nid', 0);
+
+  if (!$form_id or !$form_nid) {
+    $nid = db_query(
+     "SELECT nid FROM node
+      WHERE type = 'webform' AND title LIKE 'Join%'
+      ORDER BY nid LIMIT 1")->fetchField();
+
+    if ($nid) {
+      $form_id = "webform_client_form_{$nid}";
+      variable_set('dlaw_partner_request_form_id', $form_id);
+      variable_set('dlaw_partner_request_form_nid', (int)$nid);
+    }
+    else {
+      drupal_set_message('Join Request form title should start with <em>Join</em>');
+    }
+  }
+
+  return $form_id;
+}
+
+/**
+ * Get Org Request form ID. Since webform is a node, the form ID is not fixed
+ * value and can change from site to site. Once determined, save it as vairable
+ * to enhance performance.
+ */
+function dlaw_partner_org_request_form_id() {
+  $form_id  = variable_get('dlaw_partner_org_request_form_id', '');
+  $form_nid = variable_get('dlaw_partner_org_request_form_nid', 0);
+
+  if (!$form_id or !$form_nid) {
+    $nid = db_query(
+     "SELECT nid FROM node
+      WHERE type = 'webform' AND title LIKE 'Organization%'
+      ORDER BY nid LIMIT 1")->fetchField();
+
+    if ($nid) {
+      $form_id = "webform_client_form_{$nid}";
+      variable_set('dlaw_partner_org_request_form_id', $form_id);
+      variable_set('dlaw_partner_org_request_form_nid', (int)$nid);
+    }
+    else {
+      drupal_set_message('Organization Request form title should start with <em>Organization</em>');
+    }
+  }
+
+  return $form_id;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function dlaw_partner_form_apachesolr_panels_search_form_alter(&$form, &$form_state, $form_id) {
+  if (arg(0) == 'find-help') {
+    // Build select options for counties.
+    $vocab = taxonomy_vocabulary_machine_name_load('county');
+    $terms = taxonomy_get_tree($vocab->vid);
+
+    $options = array('' => '- Select County -');
+    foreach ($terms as $term) {
+      $options[$term->tid] = $term->name;
+    }
+
+    // Get default value from query string.
+    $default_value = '';
+    if ($params = drupal_get_query_parameters() and isset($params['f'])) {
+      foreach ($params['f'] as $param) {
+        list($facet_id, $value) = explode(':', $param);
+
+        if ($facet_id == 'im_field_partner_county') {
+          $default_value = $value;
+        }
+      }
+    }
+
+    $form['county'] = array(
+      '#type' => 'select',
+      '#title' => t('I am in'),
+      '#options' => $options,
+      '#default_value' => $default_value,
+    );
+
+    $form['#attached']['js'][] = drupal_get_path('module', 'dlaw_partner') . '/js/dlaw_partner_search.js';
+  }
+}
+
+/**
+ * Implements hook_admin_menu_output_alter().
+ *
+ * Hide all admin menu items except link to user profile and logout for partners.
+ *
+ * @see dlawdashb_admin_menu_output_alter().
+ */
+function dlaw_partner_admin_menu_output_alter(&$content) {
+  global $user;
+
+  if (!user_access('access content overview')) {
+    foreach ($content['menu'] as $key => $menu) {
+      if (strpos($key, 'admin/') === 0) {
+        unset($content['menu'][$key]);
+      }
+    }
+
+    $acc = user_load($user->uid);
+
+    if (!empty($acc->field_user_organization[LANGUAGE_NONE][0]['target_id'])) {
+      $org_nid = $acc->field_user_organization[LANGUAGE_NONE][0]['target_id'];
+
+      $content['menu']['manage-referrals'] = array(
+        '#title' => 'Manage Referrals',
+        '#href' => "node/{$org_nid}/dashboard",
+      );
+
+      $content['menu']['my-org'] = array(
+        '#title' => 'My Organization',
+        '#href' => "node/{$org_nid}",
+      );
+    }
+
+    $content['icon']['#access'] = FALSE;
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function dlaw_partner_form_partner_node_form_alter(&$form, &$form_state, $form_id) {
+  // Add pseudo checkbox to check/uncheck all counties.
+  if (isset($form['field_partner_county'])) {
+    $form['field_partner_county']['und']['#title'] .= ': &nbsp; <span id="check-all-counties"><i class="fa fa-square-o"></i> Check All</span>';
+  }
+
+  // Reveal Official Partner checkbox to site admin only.
+  if (isset($form['field_partner_network']) and !user_access('administer nodes')) {
+    $form['field_partner_network']['und']['#access'] = FALSE;
+  }
+
+  // HTML5 validation on phone/fax numbers.
+  foreach ($form as $key => $field) {
+    if (strpos($key, '_phone') or strpos($key, '_fax')) {
+      if (isset($form[$key]['und'][0]['value'])) {
+        $form[$key]['und'][0]['value']['#attributes']['placeholder'] = '123-456-7890';
+        $form[$key]['und'][0]['value']['#attributes']['pattern'] = '\d{3}[\-]\d{3}[\-]\d{4}.*';
+      }
+    }
+  }
+
+  // Assign partner author (when manager creates Partner node for partner user).
+  if (empty($form['nid']['#value']) and preg_match('#/user/(\d+)$#', $_SERVER['HTTP_REFERER'], $match)) {
+    $acc = user_load($match[1]);
+    if ($form['author']['name']['#default_value'] != $acc->name) {
+      $form['author']['name']['#default_value'] = $acc->name;
+    }
+  }
+
+  if (!user_access('create partner content')) {
+    $form['field_partner_contact']['#access'] = FALSE;
+  }
+
+  // Case 60940: Hide the fields in case we need them later.
+  $form['field_partner_ref_cont_person']['#access'] =
+  $form['field_partner_ref_cont_email']['#access']  =
+  $form['field_partner_ref_email']['#access']       =
+  $form['field_partner_ref_phone']['#access']       =
+  $form['field_partner_ref_fax']['#access']         = FALSE;
+
+  // Set the default value of Schedule Accepting date to in 30 days.
+  $future_date = date('m/d/Y', strtotime('+30 days'));
+  $js = <<<EOD
+    (function ($) {
+      $(function() {
+        $('#edit-field-partner-accepting-ref-und').click(function() {
+          if (this.checked) {
+            $('#edit-field-partner-accepting-date input:text').val('');
+          }
+          else {
+            if (!$('#edit-field-partner-accepting-date input:text').val()) {
+              $('#edit-field-partner-accepting-date input:text').val('{$future_date}');
+            }
+          }
+        });
+      });
+    })(jQuery);
+EOD;
+  drupal_add_js($js, array('type' => 'inline'));
+
+  $form['#validate'][] = 'dlaw_partner_form_partner_node_form_validate';
+}
+
+function dlaw_partner_form_partner_node_form_validate(&$form, &$form_state) {
+  $values = &$form_state['values'];
+  $accepting_referrals = $values['field_partner_accepting_ref'][LANGUAGE_NONE][0]['value'];
+  $accepting_date = $values['field_partner_accepting_date'][LANGUAGE_NONE][0]['value'];
+
+  if (!$accepting_referrals) {
+    if (!$accepting_date) {
+      form_set_error('field_partner_accepting_date', 'Please set Schedule Accepting date.');
+    }
+    elseif (date('Ymd', strtotime($accepting_date)) <= date('Ymd')) {
+      form_set_error('field_partner_accepting_date', 'Schedule Accepting date must be set to future.');
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ */
+function dlaw_partner_form_user_register_form_alter(&$form, &$form_state, $form_id) {
+  if (isset($form['#metatags'])) {
+    unset($form['#metatags']);
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ */
+function dlaw_partner_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
+  // Hide unnecessary additions to user form.
+  if (isset($form['redirect'])) {
+    $form['redirect']['#access'] = FALSE;
+  }
+  if (isset($form['ckeditor'])) {
+    $form['ckeditor']['#access'] = FALSE;
+  }
+  if (isset($form['contact'])) {
+    $form['contact']['#access'] = FALSE;
+  }
+  if (isset($form['#metatags'])) {
+    unset($form['#metatags']);
+  }
+
+  // Network user cannot update his organization.
+  if (isset($form['field_user_organization']) and !user_access('administer users')) {
+    $form['field_user_organization'][LANGUAGE_NONE]['#disabled'] = TRUE;
+  }
+
+  // Redirect upon user profile save, as leaving user on edit after save can
+  // confuse them especially when they initially reset their password.
+  if (user_has_role(TCVLAN_NETUSER_ROLE_ID)) {
+    $form['#submit'][] = 'dlaw_partner_user_profile_form_submit';
+  }
+}
+
+function dlaw_partner_user_profile_form_submit($form, $form_state) {
+  drupal_goto('user');
+}
+
+/**
+ * Implements hook_preprocess_search_result().
+ */
+function dlaw_partner_preprocess_search_result(&$vars) {
+  if ($vars['result']['node']->entity_type == 'node' and $vars['result']['node']->bundle == 'partner') {
+    if ($node = node_load($vars['result']['node']->entity_id)) {
+      if (!empty($node->field_partner_network['und'][0]['value'])) {
+        $vars['title'] = '<i class="fa fa-university" style="" title="Network Partner"></i> ' . $vars['title'];
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_cron().
+ */
+function dlaw_partner_cron() {
+  // Turn Accepting Referrels field back on if Schedule Accepting date has passed.
+  $query = db_select('field_data_field_partner_accepting_ref', 'ar');
+  $query->join('field_data_field_partner_accepting_date', 'ad', 'ar.entity_id = ad.entity_id');
+  $query->fields('ar', array('entity_id'));
+  $query->condition('ar.field_partner_accepting_ref_value', 0);
+  $query->condition('ad.field_partner_accepting_date_value', date('Y-m-d'), '<=');
+  $result = $query->execute()->fetchCol();
+
+  foreach ($result as $nid) {
+    $org = node_load($nid);
+    $org->field_partner_accepting_ref[LANGUAGE_NONE][0]['value'] = 1;
+    $org->field_partner_accepting_date[LANGUAGE_NONE] = array();
+
+    node_save($org);
+  }
+}

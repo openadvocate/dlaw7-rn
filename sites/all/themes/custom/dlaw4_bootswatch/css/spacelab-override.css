@@ -1,0 +1,28 @@
+a {
+  color: #007aca; }
+
+#bottom-region a {
+  color: #0074c0; }
+
+#footer-region a {
+  color: #0070b9; }
+
+.navbar-default .navbar-nav > li > a {
+  color: #6c6c6c; }
+
+.navbar-default .navbar-nav > .active > a, .navbar-default .navbar-nav > .active > a:hover, .navbar-default .navbar-nav > .active > a:focus {
+  color: #0070b9; }
+
+a:visited {
+  color: #005b97; }
+
+body .btn-info {
+  color: white !important;
+  background: #0b6bc0; }
+  body .btn-info:active,
+  body .btn-info a:focus, body .btn-info:hover {
+    background: #085090; }
+body #bottom-region .btn-info {
+  color: white !important; }
+
+/*# sourceMappingURL=spacelab-override.css.map */

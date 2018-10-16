@@ -1,0 +1,18 @@
+<?php
+/**
+ * @file
+ * Uninstall information.
+ */
+
+/**
+ * Quarkfield Implements hook_uninstall().
+ */
+function quarkfield_uninstall() {
+  variable_del('quarkfield_width');
+  variable_del('quarkfield_height');
+  
+  variable_del('quarkfield_vcard_width');
+  variable_del('quarkfield_vcard_height');
+
+  variable_del('quarkfield_when_show');
+}

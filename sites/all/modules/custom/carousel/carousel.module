@@ -1,0 +1,421 @@
+<?php
+
+/**
+ * @file
+ * Front page carousel.
+ */
+
+define('CAROUSEL_TYPES', 'page'); // Comma separated if more than one type.
+define('CAROUSEL_FILED', 'field_image');
+define('CAROUSEL_MAX',   9);
+define('CAROUSEL_STYLE', 'ui_front_page_carousel');
+define('LARGE_CAROUSEL_STYLE', 'large_dlaw_image');
+
+/**
+ * Implements of hook_permission().
+ */
+function carousel_permission() {
+  return array(
+    'administer carousel' => array(
+      'title' => t('Administer Slideshow'),
+      'description' => t('Perform administration tasks for Slideshow.'),
+    ),
+  );
+}
+
+/**
+ * Implements of hook_menu().
+ */
+function carousel_menu() {
+  $items['admin/dashboard/appearance/slides'] = array(
+    'title' => 'Home Page Slides',
+    'description' => 'Configure Slides',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('carousel_manage'),
+    'access arguments' => array('administer carousel'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 3,
+  );
+
+  $items['admin/dashboard/settings/carousel/autocomplete'] = array(
+    'page callback' => 'carousel_autocomplete',
+    'access arguments' => array('administer carousel'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['carousel/slide-counter'] = array(
+    'page callback' => 'carousel_slide_counter',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Menu callback for 'carousel/slide-counter'. To be called ajax from
+ * controller.carousel.js
+ */
+function carousel_slide_counter() {
+  drupal_page_is_cacheable(FALSE);
+
+  // If the request is via ajax.
+  if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+    db_merge('slide_counter')
+    ->key(array('date' => date('Y-m-d')))
+    ->fields(array(
+      'count' => 1,
+    ))
+    ->expression('count', 'count + 1')
+    ->execute();
+  }
+  else {
+    drupal_goto('/');
+  }
+}
+
+/**
+ * Menu callback for 'admin/dashboard/appearance/slides'.
+ */
+function carousel_manage() {
+  $slides = variable_get('carousel_slides', array());
+
+  if (empty($slides) && !carousel_has_pages_for_slides()) {
+    $form['note'] = array(
+      '#markup' => t('To add slides to the home page, please add Feature Images to pages.'),
+      '#prefix' => '<h4>',
+      '#suffix' => '</h4>',
+    );
+    
+    $js = <<<EOD
+(function ($) {
+  $(function() {
+    $('#carousel-manage input').prop('disabled', true);
+    $('#carousel-manage a.remove-row').hide();
+  });
+})(jQuery);
+EOD;
+    drupal_add_js($js, array('type' => 'inline'));
+
+  }
+  else {
+    $form['note'] = array(
+      '#markup' => t('Add pages as slides on the home page.'),
+    );
+  }
+
+  // Empty row for new slide input.
+  if (count($slides) < CAROUSEL_MAX) {
+    $slides[] = array('nid' => 0, 'caption' => '', 'weight' => 0);
+  }
+
+  $form['#tree'] = TRUE;
+  foreach ($slides as $id => $slide) {
+    if (!empty($slide['nid'])) {
+      if (!$node = node_load($slide['nid'])) {
+        continue;
+      }
+    }
+    else {
+      $node = (object)array('title' => '');
+    }
+
+    $form['slides'][$slide['nid']]['node'] = array(
+      '#type' => 'textfield',
+      '#autocomplete_path' => 'admin/dashboard/settings/carousel/autocomplete',
+      '#default_value' => check_plain($node->title) . (!empty($node->nid) ? " [$node->nid]" : ''),
+    );
+    $form['slides'][$slide['nid']]['caption'] = array(
+      '#type' => 'textfield',
+      '#default_value' => $slide['caption'],
+    );
+    $form['slides'][$slide['nid']]['weight'] = array(
+      '#type' => 'weight',
+      '#title' => t('Weight'),
+      '#title_display' => 'invisible',
+      '#default_value' => $slide['weight'],
+    );
+    $form['slides'][$slide['nid']]['op'] = array(
+      '#markup' => '<a href="#" class="remove-row">' . t('Remove') . '</a>',
+    );
+  }
+
+  $js = <<<EOD
+(function ($) {
+  $(function() {
+    $('a.remove-row').click(function() {
+      $(this).closest('tr').fadeOut(function() {
+        $(this).find('input.form-autocomplete').val('')
+          .closest('form').submit();
+      });
+    });
+  });
+})(jQuery);
+EOD;
+
+  drupal_add_js($js, array('type' => 'inline'));
+
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Save changes'));
+
+  // Slide click count statistics.
+  $before = 0 + db_query("SELECT SUM(count) FROM {slide_counter} WHERE date BETWEEN :from AND :to",
+    array(
+      ':from' => date('Y-m-d', REQUEST_TIME - 86400*61),
+      ':to' => date('Y-m-d', REQUEST_TIME - 86400*31)
+    )
+  )->fetchField();
+
+  $now = 0 + db_query("SELECT SUM(count) FROM {slide_counter} WHERE date BETWEEN :from AND :to",
+    array(
+      ':from' => date('Y-m-d', REQUEST_TIME - 86400*30),
+      ':to' => date('Y-m-d', REQUEST_TIME)
+    )
+  )->fetchField();
+
+  $stats =<<<OUT
+    <br><br>
+    <p>
+      Slide click counts:
+      Previous 30 days ($before),
+      Last 30 days ($now)
+    </p>
+OUT;
+
+  $form['counter'] = array(
+    '#markup' => $stats,
+  );
+
+  return $form;
+}
+
+/**
+ * Sumbit handler for carousel_manage().
+ */
+function carousel_manage_submit($form, &$form_state) {
+  $slides = array();
+  foreach ($form_state['values']['slides'] as $slide) {
+    preg_match('/\[(\d+)\]$/', $slide['node'], $matches);
+    if ($nid = !empty($matches[1]) ? (int)$matches[1] : 0) {
+      $slides[] = array(
+        'nid' => $nid,
+        'caption' => $slide['caption'],
+        'weight' => $slide['weight'],
+      );
+    }
+  }
+  
+  if (!empty($slides)) {
+    usort($slides, '_carousel_arraysort');
+  }
+
+  variable_set('carousel_slides', $slides);
+  drupal_set_message(t('Slides have been saved.'));
+}
+
+/**
+ * Custom array sort function by weight.
+ */
+function _carousel_arraysort($a, $b) {
+  if (isset($a['weight']) && isset($b['weight'])) {
+    return $a['weight'] < $b['weight'] ? -1 : 1;
+  }
+  return 0;
+}
+
+/**
+ * Theme function for carousel_manage().
+ */
+function theme_carousel_manage($variables) {
+  $form = $variables['form'];
+
+  $rows = array();
+  foreach (element_children($form['slides']) as $nid) {
+    $form['slides'][$nid]['weight']['#attributes']['class'] = array('slides-order-weight');
+    $rows[] = array(
+      'data' => array(
+        array('class' => array('slide-cross')),
+        drupal_render($form['slides'][$nid]['node']),
+        drupal_render($form['slides'][$nid]['caption']),
+        drupal_render($form['slides'][$nid]['weight']),
+        drupal_render($form['slides'][$nid]['op']),
+      ),
+      'class' => array('draggable'),
+    );
+  }
+
+  $output = drupal_render($form['type']);
+  $header = array('', t('Page title'), t('Caption (If empty, title is used)'), t('Weight'), t('Operations'));
+  $output .= drupal_render($form['note']);
+  $output .= theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('id' => 'slides-order')));
+  $output .= drupal_render_children($form);
+
+  drupal_add_tabledrag('slides-order', 'order', 'sibling', 'slides-order-weight');
+
+  return $output;
+}
+
+/**
+ * Callback for autocomplete menu 'carousel/autocomplete'.
+ */
+function carousel_autocomplete($string) {
+  $query = db_select('node', 'n');
+  $query->fields('n', array('nid', 'title'));
+  $query->join('field_data_field_image', 'img', 'n.nid = img.entity_id');
+  $query->condition('n.type', explode(',', CAROUSEL_TYPES), 'IN');
+  $query->condition('n.title', '%' . db_like($string) . '%', 'LIKE');
+  $query->range(0, 10);
+
+  $result = $query->execute();
+
+  $matches = array();
+  foreach ($result as $row) {
+    $row_label = check_plain($row->title) . " [$row->nid]";
+    $matches[$row_label] = $row_label;
+  }
+
+  // return for JS
+  drupal_json_output($matches);
+}
+
+/**
+ * Helper to find if there are eligible pages for slides.
+ */
+function carousel_has_pages_for_slides() {
+  $query = db_select('node', 'n');
+  $query->fields('n', array('nid', 'title'));
+  $query->join('field_data_field_image', 'img', 'n.nid = img.entity_id');
+  $query->condition('n.type', explode(',', CAROUSEL_TYPES), 'IN');
+  $query->range(0, 1);
+
+  return (bool)$query->execute()->rowCount();
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function carousel_block_info() {
+  $blocks['carousel'] = array(
+    'info' => t('Slides Grid'),
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function carousel_block_view($delta = '') {
+  if ($delta == 'carousel') {
+    if ($nodes = carousel_get_items()) {
+      $theme = 'slidesgrid_' . count($nodes);
+
+      $block = array();
+      $block['subject'] = '';
+      $block['content'] = array(
+        '#theme' => $theme,
+        '#nodes' => $nodes,
+      );
+
+      return $block;
+    }
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function carousel_theme($existing, $type, $theme, $path) {
+  $themes = array(
+    'carousel_manage' => array(
+      'render element' => 'form',
+    ),
+    'carousel' => array(
+      'variables' => array('nodes' => array()),
+      'template' => 'carousel',
+      'path' => $path . '/templates',
+    )
+  );
+
+  for ($i = 1; $i <= 9; $i++) {
+    $themes["slidesgrid_$i"] = array(
+      'variables' => array('nodes' => array()),
+      'template' => "slidesgrid-$i",
+      'path' => $path . '/templates',
+    );
+  }
+
+  return $themes;
+}
+
+/**
+ * Returns the list of items to be shown in the carousel.
+ */
+function carousel_get_items() {
+  if ($slides = variable_get('carousel_slides', array())) {
+    $nodes = array();
+    foreach ($slides as $slide) {
+      if ($node = node_load($slide['nid']) and !empty($node->status)) {
+        if (!empty($slide['caption'])) {
+          $node->title = $slide['caption'];
+        }
+
+        $file = file_load( $node->field_image[LANGUAGE_NONE][0]['fid'] );
+
+        $hero_image = array(
+          'style_name' => CAROUSEL_STYLE,
+          'path' => $file->uri,
+          'width' => '',
+          'height' => '',
+          'alt' => $node->title,
+          );
+        $large_hero_image = array(
+          'style_name' => LARGE_CAROUSEL_STYLE,
+          'path' => $file->uri,
+          'width' => '',
+          'height' => '',
+          'alt' => $node->title,
+          );
+
+        $node->link_to_node = '/node/' . $node->nid;
+        $node->image_to_show = theme('image_style',$hero_image);
+        $node->large_image_to_show = theme('image_style',$large_hero_image);
+        // print theme('image_style',$hero_image);
+
+        $nodes[] = $node;
+      }
+    }
+
+    return $nodes;
+  }
+}
+
+/**
+ * Implements hook_image_default_styles().
+ */
+function carousel_image_default_styles() {
+  $styles = array();
+
+  // Exported image style: ui_front_page_carousel
+  $styles['ui_front_page_carousel'] = array(
+    'name' => 'ui_front_page_carousel',
+    'effects' => array(
+      1 => array(
+        'label' => 'Scale and crop',
+        'help' => 'Scale and crop will maintain the aspect-ratio of the original image, then crop the larger dimension. This is most useful for creating perfectly square thumbnails without stretching the image.',
+        'effect callback' => 'image_scale_and_crop_effect',
+        'dimensions callback' => 'image_resize_dimensions',
+        'form callback' => 'image_resize_form',
+        'summary theme' => 'image_resize_summary',
+        'module' => 'image',
+        'name' => 'image_scale_and_crop',
+        'data' => array(
+          'width' => '400',
+          'height' => '225',
+        ),
+        'weight' => '1',
+      ),
+    ),
+  );
+
+  return $styles;
+}

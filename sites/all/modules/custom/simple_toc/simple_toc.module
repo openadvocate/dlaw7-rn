@@ -1,0 +1,134 @@
+<?php
+
+/**
+ * @file
+ * Primarily Drupal hooks.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function simple_toc_menu() {
+  $items['admin/config/system/simple-toc'] = array(
+    'title' => 'Simple Table of Contents',
+    'description' => 'Configure the display and position of tables of contents.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('simple_toc_configuration_form'),
+    'access arguments' => array('bypass node access'),
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function simple_toc_block_info() {
+  $blocks['simple_toc'] = array(
+    'info' => t('Table of Contents'),
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function simple_toc_block_view($delta = '') {
+  if (arg(0) == 'node' and is_numeric(arg(1)) and !(arg(2))) {
+    // JS is altered to ensure unique header ids.
+    drupal_add_js(drupal_get_path('module', 'simple_toc') . '/jquery.tableofcontents.js');
+    drupal_add_css(drupal_get_path('module', 'simple_toc') . '/styles/simple_toc.css');
+
+
+    $start_level = variable_get('simple_toc_start_level', 2);
+    $depth = variable_get('simple_toc_depth', 2);
+    $js = <<<JS
+(function ($) {
+  $(function() {
+
+    $("#simple-toc").tableOfContents('.field-name-body', {
+      startLevel: $start_level,
+      depth: $depth
+    });
+
+    if ($("#simple-toc li").length){
+          
+      if ( $("#simple-toc").height() < $( window).innerHeight() ) {
+          
+          $("#simple-toc").append('<a class="back-to-top" href="#">Back to top</a>');
+        
+          $('body').scrollspy({ target: '.simple-toc-parent' });
+
+
+         bottom_pos =  $('#footer-region').outerHeight(true) + $('#bottom-region').outerHeight(true);
+
+          var top_pos = $('.pane-simple-toc-simple-toc').offset().top -20;            
+          //console.log(top_pos);
+          $('.pane-simple-toc-simple-toc').affix({
+            offset: {
+              top: top_pos,
+              // bottom: bottom_pos
+                bottom: function () {
+                    return (this.bottom = $('#footer-region').outerHeight(true) + $('#bottom-region').outerHeight(true) )
+                }
+            }
+          })
+      
+      }else{
+        $("#simple-toc").hide();
+      }
+
+    }
+
+  });
+})(jQuery);
+JS;
+
+    drupal_add_js($js, 'inline');
+    
+    $block['content'] = '<div class="simple-toc-parent"><ul id="simple-toc" class="nav"></ul></div>';
+    
+    $block['subject'] = variable_get('simple_toc_title', t('Table of Contents'));
+
+    return $block;
+  }
+}
+
+/**
+ * Configuration form for table of contents options.
+ */
+function simple_toc_configuration_form($form, &$form_state) {
+  $form['simple_toc_start_level'] = array(
+    '#type' => 'select',
+    '#title' => t('Start level'),
+    '#options' => array(
+      1 => t('H1'),
+      2 => t('H2'),
+      3 => t('H3'),
+      4 => t('H4'),
+    ),
+    '#default_value' => variable_get('simple_toc_start_level', 2),
+    '#description' => t('Select start level heading.'),
+  );
+  $form['simple_toc_depth'] = array(
+    '#type' => 'select',
+    '#title' => t('Depth'),
+    '#options' => array(
+      1 => 1,
+      2 => 2,
+      3 => 3,
+      4 => 4,
+    ),
+    '#default_value' => variable_get('simple_toc_depth', 2),
+    '#description' => t('Heading depth to affect.'),
+  );
+  $form['simple_toc_title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Title'),
+    '#default_value' => variable_get('simple_toc_title', t('Table of Contents')),
+    '#description' => t('The title of the table of contents. Leave blank for no title.'),
+  );
+
+  return system_settings_form($form);
+}

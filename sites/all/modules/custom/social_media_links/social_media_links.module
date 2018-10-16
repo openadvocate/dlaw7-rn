@@ -1,0 +1,165 @@
+<?php
+/**
+ * @file
+ * Code for the Social Media Links.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function social_media_links_menu() {
+  $items['admin/dashboard/settings/social-media'] = array(
+    'title' => 'Social Media',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('social_media_links_settings_form'),
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 5,
+  );
+
+  return $items;
+}
+
+
+/**
+ *	Callback for menu admin/dashboard/settings/social-media.
+ */
+function social_media_links_settings_form() {
+	$form['some_text'] = array(
+	  '#markup' => '<h3>Enter the</h3>',
+	);
+
+	$form['social_media_links_twitter_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Twitter URL'),
+		'#default_value' => variable_get('dlaw_social_media_links_twitter_url', ''),
+	);
+	$form['social_media_links_facebook_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Facebook URL'),
+		'#default_value' => variable_get('dlaw_social_media_links_facebook_url', ''),
+	);
+	$form['social_media_links_youtube_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Youtube URL'),
+		'#default_value' => variable_get('dlaw_social_media_links_youtube_url', ''),
+	);
+	$form['social_media_links_vimeo_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Vimeo URL'),
+		'#default_value' => variable_get('dlaw_social_media_links_vimeo_url', ''),
+	);
+	$form['social_media_links_flickr_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Flickr URL'),
+		'#default_value' => variable_get('dlaw_social_media_links_flickr_url', ''),
+	);						
+	$form['social_media_links_linkedin_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('LinkedIn URL'),
+		'#default_value' => variable_get('dlaw_social_media_links_linkedin_url', ''),
+	);
+	$form['social_media_links_instagram_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Instagram URL'),
+		'#default_value' => variable_get('dlaw_social_media_links_instagram_url', ''),
+	);
+	$form['social_media_links_pinterest_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Pinterest URL'),
+		'#default_value' => variable_get('dlaw_social_media_links_pinterest_url', ''),
+	);
+	/*$form['social_media_links_rss_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('RSS Feed URL'),
+		'#default_value' => variable_get('dlaw_social_media_links_rss_url', 'http://' . $_SERVER['SERVER_NAME'] . '/rss.xml'),
+		'#description' => t('Leave this field blank to use default RSS feed url (http://' . $_SERVER['SERVER_NAME'] . '/rss.xml)'),
+	);*/
+
+	$form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save settings',
+  );
+
+	return $form;
+}
+
+/**
+ *
+ */
+function social_media_links_settings_form_submit($form, $form_state) {
+	$values = $form_state['values'];
+	
+	variable_set('dlaw_social_media_links_twitter_url', $values['social_media_links_twitter_url']);
+	variable_set('dlaw_social_media_links_facebook_url', $values['social_media_links_facebook_url']);
+	variable_set('dlaw_social_media_links_youtube_url', $values['social_media_links_youtube_url']);
+	variable_set('dlaw_social_media_links_vimeo_url', $values['social_media_links_vimeo_url']);
+	variable_set('dlaw_social_media_links_flickr_url', $values['social_media_links_flickr_url']);
+	variable_set('dlaw_social_media_links_linkedin_url', $values['social_media_links_linkedin_url']);	
+	variable_set('dlaw_social_media_links_instagram_url', $values['social_media_links_instagram_url']);	
+	variable_set('dlaw_social_media_links_pinterest_url', $values['social_media_links_pinterest_url']);	
+	// variable_set('dlaw_social_media_links_rss_url', $values['social_media_links_rss_url']);
+}
+
+/**
+ *	Implements hook_theme().
+ */
+function social_media_links_theme($existing, $type, $theme, $path) {
+	return array(
+		'social_media_links_block' => array(
+			'variables' => array('classes_array' => array('social_media_links_block', 'block'),
+			  'attributes_array' => array(), 
+			  'title_attributes_array' => array(),
+			  'content_attributes_array' => array(),),
+			'path' => $path . '/templates',
+			'template' => 'social_media_links_block',
+			'preprocess functions' => array(
+				'social_media_links_preprocess_block',
+			),
+		),
+	);
+}
+
+/**
+ *	Preprocess for social_media_links_block.tpl.php
+ */
+function social_media_links_preprocess_block(&$vars) {
+	$vars['twitter_url'] = variable_get('dlaw_social_media_links_twitter_url', '');
+	$vars['facebook_url'] = variable_get('dlaw_social_media_links_facebook_url', '');
+	$vars['youtube_url'] = variable_get('dlaw_social_media_links_youtube_url', '');
+	$vars['vimeo_url'] = variable_get('dlaw_social_media_links_vimeo_url', '');
+	$vars['flickr_url'] = variable_get('dlaw_social_media_links_flickr_url', '');
+	$vars['linkedin_url'] = variable_get('dlaw_social_media_links_linkedin_url', '');	
+	$vars['pinterest_url'] = variable_get('dlaw_social_media_links_instagram_url', '');	
+	$vars['instagram_url'] = variable_get('dlaw_social_media_links_pinterest_url', '');	
+	
+	$rssurl = variable_get('dlaw_social_media_links_rss_url', 'http://' . $_SERVER['SERVER_NAME'] . '/rss.xml');
+	if (!empty($rssurl))
+		$vars['rss_url'] = $rssurl;
+	else
+		$vars['rss_url'] = 'http://' . $_SERVER['SERVER_NAME'] . '/rss.xml';
+}
+
+/**
+ *	Implements hook_block_info().
+ */
+function social_media_links_block_info() {
+
+	$blocks['social_media_links'] = array(
+		'info' => t('Social Media Links'),
+		//'cache' => DRUPAL_CACHE_GLOBAL,
+	);
+	return $blocks;
+}
+
+/**
+ *	Implements hook_block_view().
+ */
+function social_media_links_block_view($delta = '') {
+	$block = array();
+	if ($delta == 'social_media_links') {
+		$block['subject'] = '';
+		$block['content'] = theme('social_media_links_block', array());
+	}
+	return $block;
+}

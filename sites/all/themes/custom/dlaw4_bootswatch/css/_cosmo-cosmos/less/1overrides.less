@@ -1,0 +1,43 @@
+@header_social_color: #fff;
+@header_social_color__hover: #ddd;
+
+@footer_text_color: #fff;
+@footer_link_color: #ddd;
+@footer_link_color__hover: darken(@footer_link_color, 10%);
+
+
+.dlaw-social-media-links-wrapper{
+  a,p,span,div,em{
+    color: @header_social_color;
+    &:link,
+    &:visited,
+    &:hover,
+    &:active{
+      color: @header_social_color;
+    }
+  }
+}
+
+#footer-region{
+  p,span,div{
+    color: @footer_text_color;
+  }
+
+  a{
+    color: @footer_link_color;
+
+    &:link {
+      color: @footer_link_color;
+    }
+    &:visited {
+        color: @footer_link_color;
+    }
+    &:hover {
+        color: @footer_link_color__hover;
+    }
+    &:active {
+        color: @footer_link_color;
+    }
+  }
+
+}

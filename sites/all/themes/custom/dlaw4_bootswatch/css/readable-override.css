@@ -1,0 +1,27 @@
+#apachesolr-panels-search-block .btn.btn-primary.form-submit {
+  padding: 7px 13px; }
+
+#site-toolbar #apachesolr-panels-search-block .form-item-apachesolr-panels-search-form {
+  margin-right: -79px; }
+
+#navbar {
+  padding-right: 0;
+  padding-left: 0; }
+  #navbar .navbar-collapse {
+    padding-right: 0;
+    padding-left: 0; }
+
+.branding.navbar .container .logo {
+  margin-right: -13px; }
+
+#simple-toc li.active a, #simple-toc li.active a:hover {
+  border-left: 1px solid #4582ec;
+  color: #4582ec; }
+
+#simple-toc li a:hover {
+  color: #4582ec !important; }
+
+a:visited {
+  color: #1863e6; }
+
+/*# sourceMappingURL=readable-override.css.map */

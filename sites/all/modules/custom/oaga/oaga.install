@@ -1,0 +1,57 @@
+<?php
+
+/**
+ * @file
+ * OpenAnalytics via Google Analytics module file.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function oaga_schema() {
+  $schema['oaga'] = array(
+    'description' => 'Raw dump of GA data',
+    'fields' => array(
+      'id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'month' => array(
+        'type' => 'char',
+        'length' => '7',
+        'not null' => FALSE,
+      ),
+      'path' => array(
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+      'topic' => array(
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+      'views' => array(
+        'type' => 'int',
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('id'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function oaga_install() {
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function oaga_uninstall() {
+  variable_del('oaga_month_to_check');
+}

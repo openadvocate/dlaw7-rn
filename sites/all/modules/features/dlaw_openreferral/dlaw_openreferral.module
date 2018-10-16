@@ -1,0 +1,214 @@
+<?php
+/**
+ * @file
+ * Module file for dlaw_openreferral.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function dlaw_openreferral_menu() {
+  $items = array();
+
+  $items['admin/dashboard/settings/openreferral'] = array(
+    'title' => 'Open Referral',
+    'description' => 'Configure Open Referral Settings.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('dlaw_openreferral_settings_form'),
+    'access arguments' => array('administer dlaw settings'),
+    'file' => 'dlaw_openreferral.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 8,
+  );
+
+  $items['openreferral/datapackage.json'] = array(
+    'page callback' => 'dlaw_openreferral_json_page',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['openreferral/%'] = array(
+    'page callback' => 'dlaw_openreferral_csv_page',
+    'page arguments' => array(1),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Menu callback for /openreferral/datapackage.json
+ */
+function dlaw_openreferral_json_page() {
+  $base_url = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'];
+  $name = $_SERVER['HTTP_HOST'] . '-open-referral-dataset';
+
+  $json = array(
+    'name' => $name,
+    'resources' => array(
+      array(
+        'path' => $base_url . '/openreferral/organizations.csv',
+        'schema' => array(
+          'fields' => dlaw_openreferral_fields('schema', 'organizations')
+        )
+      ),
+      array(
+        'path' => $base_url . '/openreferral/phones.csv',
+        'schema' => array(
+          'fields' => dlaw_openreferral_fields('schema', 'phones')
+        )
+      ),
+      array(
+        'path' => $base_url . '/openreferral/postal_addresses.csv',
+        'schema' => array(
+          'fields' => dlaw_openreferral_fields('schema', 'address')
+        )
+      ),
+    )
+  );
+
+  return drupal_json_output($json);
+}
+
+/**
+ * Menu callback for /openreferral/*.csv
+ */
+function dlaw_openreferral_csv_page($csv_file) {
+  switch ($csv_file) {
+    case 'organizations.csv':
+      $table = 'organizations';
+      break;
+    case 'phones.csv':
+      $table = 'phones';
+      break;
+    case 'postal_addresses.csv':
+      $table = 'address';
+      break;
+  }
+
+  if (!empty($table)) {
+    if (!$csv = dlaw_openreferral_get_openreferral_data($table)) {
+      echo 'Open Referral data not available.';
+      return;
+    }
+
+    drupal_add_http_header('Content-type', 'text/csv');
+    $out = fopen('php://output', 'w');
+    foreach ($csv as $line) {
+      fputcsv($out, $line);
+    }
+    fclose($out);
+  }
+}
+
+/**
+ * @param $mode
+ *   'field' or 'schema'
+ * 
+ * @param $table
+ *   table name or 'all'
+ */
+function dlaw_openreferral_fields($mode, $table) {
+  $fields = array(
+    'organizations' => array(
+      'name', 'alternate_name', 'description', 'email', 'url', 'legal_status', 'tax_status', 'tax_id', 'year_incorporated', 'services', 'phones', 'locations', 'contact', 'details', 'program'
+    ),
+    'phones' => array(
+      'number', 'locations', 'services', 'organizations', 'contacts', 'service_at_location_id', 'extension', 'type', 'language', 'description'
+    ),
+    'address' => array(
+      'address_1', 'city', 'state_province', 'postal_code', 'region', 'country', 'attention', 'address_type', 'locations'
+    ),
+  );
+
+  if ($mode == 'field') {
+    return $table == 'all' ? $fields : $fields[$table];
+  }
+  elseif ($mode == 'schema') {
+    return array_map(function ($val) {
+      return array('name' => $val, 'type' => 'string');
+    }, $fields[$table]);
+  }
+}
+
+function dlaw_openreferral_get_openreferral_data($table) {
+  if (!$cache = variable_get('openreferral_cache', array())) {
+    dlaw_openreferral_build_openreferral_data();
+
+    $cache = variable_get('openreferral_cache', array());
+  }
+
+  return isset($cache[$table]) ? $cache[$table] : NULL;
+}
+
+function dlaw_openreferral_build_openreferral_data() {
+  $api_key = variable_get('dlaw_openreferral_api_key', '');
+  $or_base_url = variable_get('dlaw_openreferral_base_url', '');
+
+  if (!$api_key or !$or_base_url) return;
+
+  $tables = array('services', 'locations', 'organizations', 'phones', 'address', 'contact', 'program');
+  $fields = dlaw_openreferral_fields('field', 'all');
+
+  $data = array();
+
+  foreach ($tables as $table) {
+    $airtable = drupal_http_request($or_base_url . "/$table", array('headers' => array('Authorization' => 'Bearer ' . $api_key)));
+
+    if ($airtable->code == 200 and $airtable->status_message == 'OK') {
+      $records = drupal_json_decode($airtable->data)['records'];
+
+      foreach ($records as $row) {
+        $data[$table][$row['id']] = $row['fields'];
+      }
+    }
+  }
+
+  // Replace record id with label (mostly name field except phone number) and
+  // build csv data to cache.
+  foreach (array_keys($fields) as $table) {
+    foreach ($data[$table] as $row) {
+      $item = array();
+
+      foreach ($row as $field => $value) {
+        if (is_array($value)) {
+          foreach ($value as $key => $rec_id) {
+            $val = NULL;
+            if (strpos($rec_id, 'rec') !== FALSE) {
+              if (isset($data[$field][$rec_id]['name'])) {
+                $val = $data[$field][$rec_id]['name'];
+              }
+              elseif (isset($data[$field][$rec_id]['number'])) {
+                $val = $data[$field][$rec_id]['number'];
+              }
+            }
+
+            if ($val) {
+              $value[$key] = $val;
+            }
+          }
+          $value = join(', ', $value);
+        }
+        $item[$field] = $value;
+      }
+      $openref[$table][] = $item;
+    }
+
+    foreach ($openref[$table] as $row) {
+      if (empty($csv_data[$table])) {
+        $csv_data[$table][] = array_values($fields[$table]);
+      }
+
+      $item = array();
+
+      foreach ($fields[$table] as $field) {
+        $item[] = isset($row[$field]) ? $row[$field] : '';
+      }
+
+      $csv_data[$table][] = $item;
+    }
+  }
+
+  variable_set('openreferral_cache', $csv_data);
+}

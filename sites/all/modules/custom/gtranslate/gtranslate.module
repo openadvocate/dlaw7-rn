@@ -1,0 +1,157 @@
+<?php
+/**
+ * @file
+ * Code for the Google Translate.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function gtranslate_menu() {
+  $items['admin/dashboard/settings/gtranslate'] = array(
+    'title' => 'Google Translate',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('gtranslate_settings_form'),
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 4,
+  );
+
+  return $items;
+}
+
+/**
+ *	Callback for menu admin/dashboard/settings/gtranslate.
+ */
+function gtranslate_settings_form() {
+	$langs = _gtranslate_languages();
+
+	$form['gtranslate_languages'] = array(
+		'#type' => 'checkboxes',
+		'#title' => t('Enabled Languages'),
+		'#options' => $langs,
+		'#default_value' => variable_get('dlaw_gtranslate_languages', array('en', 'es')),
+		'#prefix' => '<div class="language-list">',
+		'#suffix' => '</div>',
+	);
+
+	$form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save settings',
+  );
+
+	return $form;
+}
+
+/**
+ *	Implements hook_block_save().
+ */
+function gtranslate_settings_form_submit($form, $form_state) {
+	$choices = $form_state['values']['gtranslate_languages'];
+	$choices = array_filter($choices);
+  variable_set('dlaw_gtranslate_languages', $choices);
+}
+
+/**
+ *	Implements hook_theme().
+ */
+function gtranslate_theme($existing, $type, $theme, $path) {
+	return array(
+		'gtranslate' => array(
+			'variables' => array('classes_array' => array('donate_button_block', 'block'), 'languages' => NULL,
+			  'attributes_array' => array(), 
+			  'title_attributes_array' => array(),
+			  'content_attributes_array' => array(),),
+			'path' => $path . '/templates',
+			'template' => 'gtranslate',
+			'preprocess functions' => array(
+				'gtranslate_preprocess_block',
+			),
+		),
+	);
+}
+
+function gtranslate_preprocess_block(&$vars) {
+	$vars['languages'] = variable_get('dlaw_gtranslate_languages', array('en', 'es'));
+}
+
+/**
+ *	Implements hook_block_info().
+ */
+function gtranslate_block_info() {
+	$blocks['gtranslate'] = array(
+		'info' => t('Google Translate'),
+	);
+
+	return $blocks;
+}
+
+/**
+ *	Implements hook_block_view().
+ */
+function gtranslate_block_view($delta = '') {
+	$block = array();
+	if ($delta == 'gtranslate') {
+		$block['subject'] = 'Google translate';
+		$block['content'] = theme('gtranslate', array());
+	}
+	return $block;
+}
+
+function _gtranslate_languages() {
+	return array(
+		'af' => 'Afrikaans',
+		'sq' => 'Albanian',
+		'ar' => 'Arabic',
+		'be' => 'Belarusian',
+		'bg' => 'Bulgarian',
+		'ca' => 'Catalan',
+		'zh-CN' => 'Chinese (Simplified)',
+		'zh-TW' => 'Chinese (Traditional)',
+		'hr' => 'Croatian',
+		'cs' => 'Czech',
+		'da' => 'Danish',
+		'nl' => 'Dutch',
+		'en' => 'English',
+		'et' => 'Estonian',
+		'tl' => 'Filipino',
+		'fi' => 'Finnish',
+		'fr' => 'French',
+		'gl' => 'Galician',
+		'de' => 'German',
+		'el' => 'Greek',
+		'ht' => 'Haitian Creole',
+		'iw' => 'Hebrew',
+		'hi' => 'Hindi',
+		'hu' => 'Hungarian',
+		'is' => 'Icelandic',
+		'id' => 'Indonesian',
+		'ga' => 'Irish',
+		'it' => 'Italian',
+		'ja' => 'Japanese',
+		'ko' => 'Korean',
+		'lv' => 'Latvian',
+		'lt' => 'Lithuanian',
+		'mk' => 'Macedonian',
+		'ms' => 'Malay',
+		'mt' => 'Maltese',
+		'no' => 'Norwegian',
+		'fa' => 'Persian',
+		'pl' => 'Polish',
+		'pt' => 'Portuguese',
+		'ro' => 'Romanian',
+		'ru' => 'Russian',
+		'sr' => 'Serbian',
+		'sk' => 'Slovak',
+		'sl' => 'Slovenian',
+		'es' => 'Spanish',
+		'sw' => 'Swahili',
+		'sv' => 'Swedish',
+		'th' => 'Thai',
+		'tr' => 'Turkish',
+		'uk' => 'Ukrainian',
+		'vi' => 'Vietnamese',
+		'cy' => 'Welsh',
+		'yi' => 'Yiddish',
+	);
+}

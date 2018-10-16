@@ -1,0 +1,5 @@
+name = Bootsrap Menu Prettify
+description = Pretty the Bootstrap Menu interface for managers, editors and admins.
+package = UI_Pretty
+core = 7.x
+version = 7.x-0.1

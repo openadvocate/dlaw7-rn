@@ -1,0 +1,524 @@
+<?php
+/**
+ * @file
+ * Code for the Library feature.
+ */
+
+include_once 'library.features.inc';
+
+/**
+ *  Implements hook_menu.
+ */
+function library_menu() {
+  $items['library/%'] = array(
+    'title' => 'Library',
+    'page callback' => '_library_redirect_to_topics',
+    'page arguments' => array(1),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['topics/%'] = array(
+    'title' => 'Topics',
+    'page callback' => '_library_tid_callback',
+    'page arguments' => array(1),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ *  Implements hook_block_info().
+ */
+function library_block_info() {
+  $blocks['library'] = array(
+    'info' => t('Topics'),
+    'cache' => DRUPAL_CACHE_GLOBAL,
+  );
+
+  $blocks['library_tree'] = array(
+    'info' => t('Topics (tree)'),
+    'cache' => DRUPAL_CACHE_PER_USER,
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_configure().
+ */
+function library_block_configure($delta = '') {
+  $form = array();
+  if ($delta == 'library') {
+    $form['block_view'] = array(
+      '#type' => 'radios',
+      '#title' => t('Topics view'),
+      '#default_value' => variable_get('library_block_view', 'expanded'),
+      '#options' => array(
+        'compact' => 'Compact',
+        'expanded' => 'Expanded',
+        'compact_icon' => 'Compact with icon',
+        'expanded_icon' => 'Expanded with icon',
+      ),
+    );
+  }
+
+  return $form;
+}
+
+/**
+ * Implements hook_block_save().
+ */
+function library_block_save($delta = '', $edit = array()) {
+  if ($delta == 'library') {
+    variable_set('library_block_view', $edit['block_view']);
+  }
+}
+
+/**
+ *  Implements hook_block_view().
+ */
+function library_block_view($delta = '') {
+  $block = array();
+
+  if ($delta == 'library') {
+    if (arg(0) == 'topics') {
+      $block_view = 'expanded_icon';
+    }
+    else {
+      $block_view = variable_get('library_block_view', 'expanded');
+    }
+
+    $voc  = taxonomy_vocabulary_machine_name_load('category');
+    $tree = taxonomy_get_tree($voc->vid, 0, 1, TRUE);
+    $list = array();
+
+    $class_mod = 'btn-sm';
+    if (arg(0) == 'topics') {
+      $class_mod = is_numeric(arg(1)) ? '' : 'btn-lg';
+    }
+    elseif (in_array($block_view, array('expanded', 'expanded_icon'))) {
+      $class_mod = 'btn-lg';
+    }
+
+    foreach ($tree as $term) {
+      // Show only term that have contents under them.
+      if (library_get_node_count($term->tid)) {
+        $children = '';
+        if (in_array($block_view, array('expanded', 'expanded_icon'))) {
+          if ($children = library_get_children_terms($term->tid)) {
+            $children = ' <small>' . $children . '</small>';
+          }
+        }
+
+        $icon = '';
+        if ($block_view == 'expanded_icon') {
+          if (!empty($term->field_category_icon[LANGUAGE_NONE][0]['value'])) {
+            $url = $term->field_category_icon[LANGUAGE_NONE][0]['value'];
+            $icon = '<img src="' . $url . '">';
+
+          }
+        }
+        elseif ($block_view == 'compact_icon') {
+          $url = $term->field_category_icon[LANGUAGE_NONE][0]['value'];
+            $icon = '<img src="' . $url . '">';
+        }
+
+        $list[] = array(
+          'data' => l($icon . $term->name . $children,
+            "topics/$term->tid/" . library_cleanstring($term->name),
+            array(
+              'html' => TRUE,
+              'attributes' => array(
+                'class' => array('btn' ,'btn-default', $class_mod)
+              )
+            )
+          ),
+          'class' => array('library-' . strtolower(preg_replace('/\W/', '-', $term->name))),
+        );
+      }
+    }
+
+    list($block_view_class, ) = explode('_', $block_view);
+
+    $block['content'] = theme('item_list', array(
+      'items' => $list,
+      'attributes' => array('class' => array("library-block-{$block_view_class}"))
+    ));
+    $block['subject'] = 'Topics';
+
+  }
+  elseif ($delta == 'library_tree') {
+
+    $block['content'] = '<a class="btn btn-default btn-block all-topics-link" href="/topics">Topics</a>';
+    $voc  = taxonomy_vocabulary_machine_name_load('category');
+    $terms = taxonomy_get_tree($voc->vid);
+    library_remove_empty_term($terms);
+
+    $depth = 0;
+    $num_at_depth = 0;
+    $tree = "<ul id=\"topics-tree\">\n<li class=\"topic-item \">";
+    foreach ($terms as $term) {
+
+      $diffdepth = 0;
+      if ($term->depth > $depth) {
+        $tree .= "\n<ul class=\"topics-tree-inner\">\n<li class=\"topic-item \">";
+        $depth = $term->depth;
+        $num_at_depth = 0;
+      }
+      if ($term->depth < $depth) {
+        $diffdepth = $depth - $term->depth;
+        while ($diffdepth > 0) {
+          $tree .= "</li>\n</ul>\n";
+          $diffdepth--;
+        }
+        $depth = $term->depth;
+      }
+      if (($term->depth == $depth) && ($num_at_depth > 0)) {
+        $tree .= "</li>\n<li class=\"topic-item \">";
+      }
+
+      $data_depth = $depth+1;
+      $data_depth_level = $depth+1;
+      $tree .= l("$term->name", "topics/$term->tid/" . library_cleanstring($term->name), array('attributes' => array('data-depth-level' => "#t" . $data_depth_level, 'data-depth' => $data_depth),'html' => TRUE));
+      $num_at_depth++;
+
+    }
+    $tree .= "</li>\n</ul>\n";
+    $tree .= '</ul>';
+
+    $block['subject'] = '';
+
+    $block['content'] .= $tree;
+
+  }
+
+  return $block;
+}
+
+function library_cleanstring($str) {
+  if (module_exists('pathauto')) {
+    if (!function_exists('pathauto_cleanstring')) {
+      module_load_include('inc', 'pathauto', 'pathauto');
+    }
+
+    return pathauto_cleanstring($str);
+  }
+
+  return preg_replace('@[^a-z0-9-]+@','-', strtolower($str));
+}
+
+function _library_redirect_to_topics($tid) {
+  drupal_goto("topics/$tid");
+}
+
+function _library_tid_callback($tid) {
+
+  $parent_term = taxonomy_term_load($tid);
+
+  $icon = '';
+  if (!empty($parent_term->field_category_icon[LANGUAGE_NONE][0]['value'])) {
+    $url = $parent_term->field_category_icon[LANGUAGE_NONE][0]['value'];
+    $icon = '<img src="' . $url . '" class="category-icon"> ';
+  }
+
+  drupal_set_title($icon . $parent_term->name, PASS_THROUGH);
+
+  // $vid = _library_get_vid();
+  // $terms_tree = taxonomy_get_tree($vid, arg(1), 1);
+
+  // Hide the term if it and its children have no nodes associated.
+  // The variable has no UI yet.
+  // if (variable_get('library_hide_empty_term', TRUE)) {
+  //   library_remove_empty_term($terms_tree);
+  // }
+
+  $out = theme('library_page', array('tid' => $tid));
+  return $out;
+}
+
+/**
+ * Remove terms in the library listing that have not nodes under them.
+ */
+function library_remove_empty_term(&$terms_tree) {
+  foreach ($terms_tree as $key => $term) {
+    if (!library_get_node_count($term->tid)) {
+      unset($terms_tree[$key]);
+    }
+  }
+}
+
+/**
+ * Return the total count of associated nodes for a term.
+ */
+function library_get_node_count($tid) {
+  if ($parent = taxonomy_term_load($tid)) {
+    $children = taxonomy_get_tree($parent->vid, $parent->tid);
+
+    $tids = array($parent->tid);
+    foreach ($children as $term) {
+      $tids[] = $term->tid;
+    }
+
+    $count = db_query(
+     "SELECT COUNT(n.nid)
+      FROM {node} n
+        JOIN {taxonomy_index} i ON n.nid = i.nid
+      WHERE n.status = 1 AND n.type = 'page' AND i.tid IN (:tids)
+      LIMIT 1",
+      array(':tids' => $tids))->fetchField();
+
+    return (int)$count;
+  }
+
+  return 0;
+}
+
+function library_get_children_terms($tid, $count = 5) {
+  $all_children = taxonomy_get_children($tid);
+  $children = array();
+
+  foreach ($all_children as $term) {
+    $children[] = $term->name;
+
+    if (count($children) >= $count) break;
+  }
+
+  if (count($all_children) > count($children)) {
+    $children[] = '...';
+  }
+
+  return join(', ', $children);
+}
+
+/**
+ *  Implements hook_theme.
+ */
+function library_theme($existing, $type, $theme, $path) {
+  return array(
+    'library_page' => array(
+      'variables' => array('classes_array' => array('library_page', 'block'), 'tid' => NULL, 'terms' => NULL,
+        'attributes_array' => array(),
+        'title_attributes_array' => array(),
+        'content_attributes_array' => array(),),
+      'path' => $path . '/templates',
+      'template' => 'library_page',
+      'preprocess functions' => array(
+        'library_preprocess_page',
+      ),
+    ),
+    'library_related_nodes' => array(
+      'variables' => array('classes_array' => array('library_related_nodes', 'block'), 'tids' => NULL,
+        'attributes_array' => array(),
+        'title_attributes_array' => array(),
+        'content_attributes_array' => array(),),
+      'path' => $path . '/templates',
+      'template' => 'library_related_nodes',
+      'preprocess functions' => array(
+        'library_preprocess_related_nodes',
+      ),
+    ),
+    'library_breadcrumb' => array(
+      'variables' => array('classes_array' => array('library_breadcrumb', 'block'), 'parent_tid' => NULL,
+        'attributes_array' => array(),
+        'title_attributes_array' => array(),
+        'content_attributes_array' => array(),),
+      'path' => $path . '/templates',
+      'template' => 'library_breadcrumb',
+      'preprocess functions' => array(
+        'library_preprocess_breadcrumb',
+      ),
+    ),
+  );
+}
+
+/**
+ *  Preprocess for library_breadcrumb.tpl.php
+ */
+function library_preprocess_breadcrumb(&$vars) {
+  $tid = NULL;
+  if (isset($vars['parent_tid'])) {
+    $tid = $vars['parent_tid'];
+  }
+  $vars['terms'] = taxonomy_get_parents_all($tid);
+}
+
+/**
+ *  Preprocess for library_page.tpl.php
+ */
+function library_preprocess_page(&$vars) {
+
+  //  Remove button styles if in bottom region
+  if(!empty($vars['page']['footer']['library_library'])){
+    $toReplace = array('btn ', ' btn-default', ' btn-sm');
+    $withReplace = array(' ', '', '');
+    $vars['page']['footer']['library_library']['#markup'] = str_replace($toReplace, $withReplace, $vars['page']['footer']['library_library']['#markup']);
+  }
+
+  $tid = NULL;
+  if (isset($vars['tid'])) {
+    $tid = $vars['tid'];
+    $vars['library_breadcrumbs'] = theme('library_breadcrumb', array('parent_tid' => $tid));
+
+    $view = views_get_view('contact_list_by_term');
+    // print_r( $view->args);
+
+    $view->args[] = $tid;
+    // if ($view && $view->access('contact_block')) {
+    // //   // it has a 'contact_block' display
+    //   $view->set_display('contact_block');
+    //   $view->set_items_per_page(5);
+
+    //   $view->init_display();
+    //   $view->pre_execute();
+    //   $view->execute();
+    // }
+    $term = taxonomy_term_load($tid);
+    $vars['term_description'] = $term->description;
+  }
+}
+
+
+/**
+ *  Preprocess for library_related_nodes.tpl.php
+ */
+function library_preprocess_related_nodes(&$vars) {
+  $tids = $vars['tids'];
+  $nodes = _dlaw_dashboard_get_nodes_by_tid($tids);
+
+  // dpm($nodes);
+
+  $vars['nodes'] = $nodes;
+}
+
+function _library_get_vid() {
+  $vid = db_query("SELECT vid FROM taxonomy_vocabulary WHERE machine_name = :vocabulary", array(":vocabulary" => 'category'))->fetchField();
+  return $vid;
+}
+
+function _dlaw_dashboard_get_nodes_by_tid($tids) {
+
+  $nids = array();
+  $nodes = array();
+
+  if (is_array($tids)) {
+    $result = db_query("SELECT n.nid FROM taxonomy_index ti
+    JOIN node n ON n.nid = ti.nid WHERE ti.tid IN (:tids) AND n.status = 1 ORDER BY n.title ASC",  array(':tids' => join(", ", $tids)));
+  }
+  else {
+    $result = db_query("SELECT n.nid FROM taxonomy_index ti
+    JOIN node n ON n.nid = ti.nid WHERE ti.tid = :tid AND n.status = 1 ORDER BY n.title ASC",
+    array(':tid' => $tids));
+  }
+  foreach ($result as $record) {
+    if (!in_array($record->nid, $nids)) {
+      $nids[] = $record->nid;
+      $temp_node = node_load($record->nid);
+      if ($temp_node->type != "contact") {
+        $nodes[] = $temp_node;
+      }
+    }
+  }
+  return $nodes;
+}
+
+function dlaw_format_date($timestamp) {
+  if (empty($timestamp)) return '';
+
+  $interval = REQUEST_TIME - $timestamp;
+
+  // Display date if more than 7 days
+  if ($interval > 604800) {
+    return date('F j, Y', $timestamp);
+  }
+  else {
+    $ago = format_interval($interval, 1);
+    return $ago == '1 day' ? t('Yesterday') : $ago . t(' ago');
+  }
+}
+
+
+/**
+ * Truncates a string to the length of $length and replaces the last characters
+ * with the ending if the text is longer than length.
+ *
+ * @param  $text      String    Text to truncate.
+ * @param $length     Integer   Length of returned string, including ellipsis.
+ * @param $ending     String    Ending to be appended to the trimmed string.
+ * @param $exact      Boolean   If true, $text might get cut mid-word
+ * @param $considerHtml Boolean   If true, HTML tags would be handled correctly
+ *
+ * @return  String    Trimmed string.
+ *
+ * @see
+ *    http://www.gsdesign.ro/blog/cut-html-string-without-breaking-the-tags/
+ *
+ */
+function _library_truncate($text, $length = 100, $removetags = array(), $ending = '...', $exact = false, $considerHtml = true) {
+  if (!empty($removetags)) $text = preg_replace('#<(' . implode('|', $removetags) . ')>.*?</\1>#s', '', $text);
+  if ($considerHtml) {
+    if (strlen(preg_replace('/<.*?>/', '', $text)) <= $length) {
+      return $text;
+    }
+    preg_match_all('/(<.+?>)?([^<>]*)/s', $text, $lines, PREG_SET_ORDER);
+    $total_length = strlen($ending);
+    $open_tags = array();
+    $truncate = '';
+    foreach ($lines as $line_matchings) {
+      if (!empty($line_matchings[1])) {
+        if (preg_match('/^<(\s*.+?\/\s*|\s*(img|br|input|hr|area|base|basefont|col|frame|isindex|link|meta|param)(\s.+?)?)>$/is', $line_matchings[1])) {
+          // do nothing
+        } else if (preg_match('/^<\s*\/([^\s]+?)\s*>$/s', $line_matchings[1], $tag_matchings)) {
+          $pos = array_search($tag_matchings[1], $open_tags);
+          if ($pos !== false) {
+            unset($open_tags[$pos]);
+          }
+        } else if (preg_match('/^<\s*([^\s>!]+).*?>$/s', $line_matchings[1], $tag_matchings)) {
+          array_unshift($open_tags, strtolower($tag_matchings[1]));
+        }
+        $truncate .= $line_matchings[1];
+      }
+      $content_length = strlen(preg_replace('/&[0-9a-z]{2,8};|&#[0-9]{1,7};|&#x[0-9a-f]{1,6};/i', ' ', $line_matchings[2]));
+      if ($total_length + $content_length > $length) {
+        $left = $length - $total_length;
+        $entities_length = 0;
+        if (preg_match_all('/&[0-9a-z]{2,8};|&#[0-9]{1,7};|&#x[0-9a-f]{1,6};/i', $line_matchings[2], $entities, PREG_OFFSET_CAPTURE)) {
+          foreach ($entities[0] as $entity) {
+            if ($entity[1]+1-$entities_length <= $left) {
+              $left--;
+              $entities_length += strlen($entity[0]);
+            } else {
+              break;
+            }
+          }
+        }
+        $truncate .= substr($line_matchings[2], 0, $left + $entities_length);
+        break;
+      } else {
+        $truncate .= $line_matchings[2];
+        $total_length += $content_length;
+      }
+      if ($total_length>= $length) break;
+    }
+  } else {
+    if (strlen($text) <= $length) {
+      return $text;
+    } else {
+      $truncate = substr($text, 0, $length - strlen($ending));
+    }
+  }
+  if (!$exact) {
+    $spacepos = strrpos($truncate, ' ');
+    if (isset($spacepos)) {
+      $truncate = substr($truncate, 0, $spacepos);
+    }
+  }
+  $truncate .= $ending;
+  if($considerHtml) {
+    foreach ($open_tags as $tag) {
+      $truncate .= '</' . $tag . '>';
+    }
+  }
+  return $truncate;
+}

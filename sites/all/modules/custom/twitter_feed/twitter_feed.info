@@ -1,0 +1,5 @@
+name = Twitter Feed
+description = Enables Twitter Feed block
+package = DLAW
+core = 7.x
+version = 7.x-0.1

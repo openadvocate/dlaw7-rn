@@ -1,0 +1,97 @@
+<?php
+/**
+ * @file
+ * Code for the DLAW 404 Page feature.
+ */
+
+include_once 'dlaw_404.features.inc';
+
+/**
+ * Implements hook_block_info().
+ */
+function dlaw_404_block_info() {
+  $blocks['dlaw_404_popular_pages'] = array(
+    'info' => t('List of popular pages for custom 404 page.'),
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function dlaw_404_block_view($delta = '') {
+  $function = $delta . '_block';
+  if (function_exists($function)) {
+    return $function();
+  }
+}
+
+/**
+ * Block view implementation of dlaw_404_popular_pages
+ * 
+ * @see dashboardga_block_view(), where the logic was copied from.
+ */
+function dlaw_404_popular_pages_block() {
+  if ($cache = cache_get('dlaw_404_popular_pages')) {
+    return array('subject' => '', 'content' => $cache->data);
+  }
+  elseif (function_exists('google_analytics_api_report_data')) {
+    $params = array(
+      'metrics' => array('ga:pageviews'),
+      'dimensions' => array('ga:pagePath', 'ga:pageTitle'),
+      'segment' => 'gaid::-1',
+      'sort_metric' => array('-ga:pageviews'),
+      'start_date' => strtotime('-30 days'),
+      'end_date' => strtotime('-1 day'),
+      'sort' => '-ga:pageviews',
+      'filters' => 'ga:pageTitle!=(not set)',
+      'max_results' => 21,
+    );
+
+    $feed = google_analytics_api_report_data($params);
+
+    if (!empty($feed) and !empty($feed->results->rows)) {
+      $list = array();
+
+      foreach ($feed->results->rows as $row) {
+        if ($row['pagePath'] == '/') continue; // No need for showing <front>
+        if (strpos($row['pagePath'], '404.html') !== FALSE) continue;
+
+        if ($dash_pos = strrpos($row['pageTitle'], ' - ')) {
+          $title = substr($row['pageTitle'], 0, $dash_pos);
+        }
+        else {
+          $title = $row['pageTitle'];
+        }
+
+        $page = '<span class="ga-link">' . l($title, substr($row['pagePath'], 1)) . '</span>';
+
+        if (!in_array($page, $list)) {
+          $list[] = $page;
+        }
+
+      }
+
+      $attributes = array('class' => array('ga_list','ga_most_visited_list','clearfix'));
+      $popular_pages = theme('item_list', array('items' => $list, 'type' => 'ul', 'attributes' => $attributes));
+
+      $help_message = '<p>Please <a href="/search-site">search this website</a> or explore these most-visited pages:</p>' . $popular_pages;
+    }
+  }
+
+  if (empty($help_message)) {
+    $help_message = '<p>Please <a href="/search-site">search this website</a>.</p>';
+  }
+
+  $content = <<< OUT
+    <div class="col-sm-12">
+      <h1>Sorry, we can't find this page.</h1>
+      $help_message
+    </div>
+OUT;
+
+  cache_set('dlaw_404_popular_pages', $content, 'cache', REQUEST_TIME + 86400);
+
+  return array('subject' => '', 'content' => $content);
+}

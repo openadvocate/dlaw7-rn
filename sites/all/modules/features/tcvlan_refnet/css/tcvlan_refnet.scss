@@ -1,0 +1,37 @@
+.page-admin-dashboard-refnet {
+  div.block h2 {
+    font-size: 18px;
+    font-weight: normal;
+  }
+
+  .pane-tcvlan-refnet-tcvlan-refnet-add-content {
+    margin-bottom: 2em;
+  }
+
+  .btn-add-org {
+    color: white;
+    background-color: #cd32cd;
+    margin-right: 20px;
+
+    &:hover, &:active {
+      color: white;
+      background-color: #a428a4;
+    }
+  }
+
+  .btn-add-user {
+    color: white;
+    background-color: #8000ff;
+
+    &:hover, &:active {
+      color: white;
+      background-color: #5900b3;
+    }
+  }
+
+  .pane-tcvlan-refnet-tcvlan-refnet-join-requests {
+    table {
+      margin-bottom: 10px;
+    }
+  }
+}

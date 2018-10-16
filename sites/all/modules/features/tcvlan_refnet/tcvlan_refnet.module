@@ -1,0 +1,34 @@
+<?php
+/**
+ * @file
+ * Code for the TCVLAN Referral Network feature.
+ */
+
+include_once 'tcvlan_refnet.features.inc';
+include_once 'tcvlan_refnet.block.inc';
+include_once 'tcvlan_refnet.block.referral.inc';
+include_once 'tcvlan_refnet.form.inc';
+
+define('TCVLAN_REF_STATUS_POSTED',    1);
+define('TCVLAN_REF_STATUS_INVITED',   2);
+define('TCVLAN_REF_STATUS_ACCEPTED',  3);
+define('TCVLAN_REF_STATUS_CERTIFIED', 4);
+define('TCVLAN_REF_STATUS_REFERRED',  5);
+define('TCVLAN_REF_STATUS_CLOSED',    6);
+
+function tcvlan_refnet_get_org_contact($org) {
+  if (!empty($org->field_partner_contact)) {
+    $contact_uid = $org->field_partner_contact[LANGUAGE_NONE][0]['target_id'];
+  }
+
+  if (empty($contact_uid)) {
+    $query = db_select('field_data_field_user_organization', 'o');
+    $query->join('users', 'u', 'o.entity_id = u.uid');
+    $query->fields('u', array('uid'));
+    $query->condition('o.field_user_organization_target_id', $org->nid);
+    $query->condition('u.status', 1);
+    $contact_uid = $query->execute()->fetchField();
+  }
+
+  return !empty($contact_uid) ? user_load($contact_uid) : NULL;
+}

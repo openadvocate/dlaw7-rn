@@ -1,0 +1,23 @@
+<?php
+
+/**
+ * @file
+ * Input filter to change image URL to https.
+ */
+
+function sslimg_filter_info() {
+  $filters['sslimg'] = array(
+    'title' => t('SSL Image'), 
+    'description' => t('Converts unsecure image URL to https.'),
+    'process callback' => 'sslimg_filter_process',
+  );
+
+  return $filters;
+}
+
+/**
+ * Implements hook_filter_FILTER_process().
+ */
+function sslimg_filter_process($text, $filter, $format, $langcode, $cache, $cache_id) {
+  return preg_replace('#(src=[\'"])(http://)#', '${1}https://', $text);
+}

@@ -1,0 +1,112 @@
+<?php
+/**
+ * @file
+ * Code for the DLAW Link checker feature.
+ */
+
+include_once 'dlaw5_linkchecker.features.inc';
+
+/**
+ * Implements hook_menu().
+ */
+function dlaw5_linkchecker_menu() {
+  $items['admin/dashboard/seo/linkchecker'] = array(
+    'title' => 'Link Checker',
+    'description' => 'DLAW Dashboard - Link checker',
+    'page callback' => 'dlaw5_linkchecker_report_page', 
+    'access arguments' => array('administer dlaw settings'), 
+    'weight' => 1,
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  return $items;
+}
+
+/**
+ * Menu callback for linkcehcker reporting.
+ * 
+ * Code borrowed from linkchecker_admin_report_page().
+ */
+function dlaw5_linkchecker_report_page() {
+  $ignore_response_codes = preg_split('/(\r\n?|\n)/', variable_get('linkchecker_ignore_response_codes', "200\n206\n302\n304\n401\n403"));
+
+  $subquery = db_select('linkchecker_node', 'ln')
+    ->distinct()
+    ->fields('ln', array('lid'));
+
+  // Build pager query.
+  $query = db_select('linkchecker_link', 'll')->extend('PagerDefault');
+  $query->innerJoin($subquery, 'q2', 'q2.lid = ll.lid');
+  // $query->innerJoin('node', 'n', 'n.nid = ll.lid');
+  $query->fields('ll');
+  $query->condition('ll.last_checked', 0, '<>');
+  $query->condition('ll.status', 1);
+  $query->condition('ll.code', $ignore_response_codes, 'NOT IN');
+
+  return _dlaw5_linkchecker_report_page($query);
+}
+
+/**
+ * Code borrowed from _linkchecker_report_page().
+ */
+function _dlaw5_linkchecker_report_page($query) {
+  module_load_include('inc', 'linkchecker', 'linkchecker.pages');
+
+  $links_unchecked = db_query('SELECT COUNT(1) FROM {linkchecker_link} WHERE last_checked = :last_checked AND status = :status', array(':last_checked' => 0, ':status' => 1))->fetchField();
+  if ($links_unchecked > 0) {
+    $links_all = db_query('SELECT COUNT(1) FROM {linkchecker_link} WHERE status = :status', array(':status' => 1))->fetchField();
+    drupal_set_message(format_plural($links_unchecked,
+      'There is 1 unchecked link of about @links_all links in the database. Please be patient until all links have been checked via cron.',
+      'There are @count unchecked links of about @links_all links in the database. Please be patient until all links have been checked via cron.',
+      array('@links_all' => $links_all)), 'warning');
+  }
+
+  $result = $query
+    ->limit(50)
+    ->execute();
+
+  $rows = array();
+  foreach ($result as $link) {
+    $nids = _linkchecker_link_node_ids($link);
+    $links = array();
+
+    // Show link to nodes having this broken link.
+    foreach ($nids as $nid) {
+      $links[] = l('Edit', "node/$nid/edit", array('attributes' => array('target' => '_blank'))) . ': ' . _dlaw5_linkchecker_node_title($nid);
+    }
+
+    $rows[] = array(
+      'data' => array(
+        theme('item_list', array('items' => $links)),
+        _filter_url_trim($link->url, 50),
+        $link->code,
+        truncate_utf8($link->error, 40, TRUE, TRUE),
+      ),
+    );
+  }
+
+  drupal_set_message('Link Checker (Beta) attempts to determine if a link is broken (Note: Some sites may not respond to automatic checking correctly and may show up as broken links even though the URL may be available).');
+
+  $build['linkchecker_table'] = array(
+    '#theme' => 'table',
+    '#header' => array(
+      'Content Title',
+      'Bad Link',
+      'Code&nbsp;&nbsp;',
+      'Error Message'
+    ),
+    '#rows' => $rows,
+    '#empty' => t('No broken links have been found.'),
+  );
+  $build['linkchecker_pager'] = array('#theme' => 'pager');
+
+  return $build;
+}
+
+function _dlaw5_linkchecker_node_title($nid) {
+  return db_select('node', 'n')
+    ->fields('n', array('title'))
+    ->condition('n.nid', $nid)
+    ->execute()
+    ->fetchField();
+}

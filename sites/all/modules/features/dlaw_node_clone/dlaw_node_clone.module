@@ -1,0 +1,42 @@
+<?php
+/**
+ * @file
+ * Code for the DLAW Node Clone feature.
+ */
+
+include_once 'dlaw_node_clone.features.inc';
+
+/**
+ * Implements hook_clone_node_alter().
+ *
+ * Exclude image and attachments from cloning.
+ */
+function dlaw_node_clone_clone_node_alter(&$node, $context) {
+  if (!empty($context['original_node']->title)) {
+    $node->title = 'Copy of ' . $context['original_node']->title;
+  }
+
+  // Uncomment if we don't want to copy image/file.
+  // if (!empty($node->field_image['und'][0]['fid'])) {
+  //   $node->field_image = array();
+  // }
+
+  // if (!empty($node->field_attachments['und'][0]['fid'])) {
+  //   $node->field_attachments = array();
+  // }
+}
+
+/**
+ * Implements hook_menu_alter().
+ *
+ * Render clone link as a tab instead of an action link.
+ */
+function dlaw_node_clone_menu_alter(&$items) {
+  if (isset($items['node/%node/clone/%clone_token'])) {
+    $items['node/%node/clone/%clone_token']['title'] = 'Make a copy';
+    $items['node/%node/clone/%clone_token']['type'] = MENU_LOCAL_TASK;
+
+    unset($items['node/%node/clone/%clone_token']['title callback']);
+    unset($items['node/%node/clone/%clone_token']['title arguments']);
+  }
+}

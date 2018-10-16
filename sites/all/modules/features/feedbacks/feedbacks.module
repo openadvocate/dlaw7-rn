@@ -1,0 +1,314 @@
+<?php
+/**
+ * @file
+ * Code for the Feedbacks feature.
+ */
+
+include_once 'feedbacks.features.inc';
+
+/**
+ * Implements hook_menu().
+ */
+function feedbacks_menu() {
+  $items['comment/%comment/hide'] = array(
+    'title' => 'Hide comment',
+    'page callback' => 'feedbacks_hide_comment',
+    'page arguments' => array(1),
+    'access arguments' => array('administer comments'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_menu_alter().
+ */
+function feedbacks_menu_alter(&$items) {
+  // Disable page provided by rate module.
+  if (isset($items['node/%node/rating'])) {
+    $items['node/%node/rating']['access callback'] = FALSE;
+  }
+
+  if (isset($items['comment/reply/%node'])) {
+    $items['comment/reply/%node']['access callback'] = FALSE;
+  }
+}
+
+/**
+ * Menu callback for comment/%comment/hide
+ */
+function feedbacks_hide_comment($comment) {
+  $comment->comment_body[LANGUAGE_NONE][0]['value'] = '(empty)';
+  comment_save($comment);
+
+  echo 'success';
+  drupal_exit();
+}
+/**
+ * Implements template_preprocess_comment().
+ */
+function feedbacks_preprocess_comment(&$vars) {
+  $vars['title'] = '';
+  $vars['permalink'] = '';
+  $why_un_class='';
+  if (!empty($vars['content']['field_why_unhelpful']['#object']->field_why_unhelpful[LANGUAGE_NONE][0])) {
+
+    $why_un = $vars['content']['field_why_unhelpful']['#object']->field_why_unhelpful[LANGUAGE_NONE][0]['value'];
+    switch ($why_un) {
+      case '1':
+        $why_un_class ="not_related";
+        break;
+      case '2':
+        $why_un_class ="not_enough";
+        break;
+      case '3':
+        $why_un_class ="unclear";
+        break;
+      default:
+        break;
+    }
+  }
+
+  $vars['submitted'] = '<span class="sr-only">' . drupal_render($vars['content']['field_why_unhelpful']) . '</span><span class="color_code '. $why_un_class .'">' .  '</span><span class="small feedback_date">' .  $vars['created'] .'</span>'; //  ;
+  $vars['content']['links'] = '';
+  $vars['classes_array'][] = 'feedback_comment';
+  // $vars['content_attributes_class'] = 'lead';
+}
+
+ /**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function feedbacks_form_comment_node_page_form_alter(&$form, $form_state, $form_id) {
+  if (arg(0) == 'node') {
+    $form['#attached']['js'][] = drupal_get_path('module', 'feedbacks') . '/js/feedbacks.js';
+    $form['#attached']['css'][] = drupal_get_path('module', 'feedbacks') . '/css/feedbacks.css';
+    
+    // Change text of Save button and keep primary class.
+    $form['actions']['submit']['#prefix'] = '<p id="disclaimer">Tell us how to improve this page. But please do not write any personal information. We cannot respond to the comments sent through this form.</p>';
+    $form['actions']['submit']['#value'] = 'Send';
+    $form['actions']['submit']['#attributes'] = array('class' => array('btn-primary'));
+
+    foreach ($form['#submit'] as $key => $submit) {
+      
+      if ($submit == 'comment_form_submit') {
+        $form['#submit'][$key] = 'feedbacks_comment_form_submit';
+      }
+    }
+  }
+}
+
+/**
+ * Custom submit handler to intercept comment_form_submit().
+ * If any of name, mail, homepage is not empty from anonymous commenter,
+ * Don't save the comment. The fields are hidden from users and regular
+ * users would leave them empty.
+ */
+function feedbacks_comment_form_submit($form, &$form_state) {
+  $val = $form_state['values'];
+  if (!$val['is_anonymous'] or ($val['is_anonymous'] and $val['name'] == '' and $val['mail'] == '' and $val['homepage'] == '')) {
+
+    // Comment body is no optional, but it generates php notice. So add a dummy content.
+    if (empty($form_state['values']['comment_body'][LANGUAGE_NONE][0]['value'])) {
+      $form_state['values']['comment_body'][LANGUAGE_NONE][0]['value'] = '(empty)';
+    }
+    
+    comment_form_submit($form, $form_state);
+  }
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function feedbacks_block_info() {
+  $blocks['feedback_chart'] = array(
+    'info' => t('Feedback chart'),
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function feedbacks_block_view($delta = '') {
+  $block = array();
+
+  if ($delta == 'feedback_chart' and is_numeric(arg(1)) and $node = node_load(arg(1))) {
+    $output = '<div class="row">';
+
+    // Chart for "How much helpful".
+    $options = feedbacks_widget_options();
+    $rates   = rate_get_results('node', $node->nid, key($options));
+    // Cast values from string to ingeter. Otherwise chart will not render correct.
+    foreach ($rates['options'] as $key => $value) {
+      $rates['options'][$key] = (int)$rates['options'][$key];
+    }
+
+    $chart1 = array(
+      '#type' => 'chart',
+      '#title' => t('How helpful:'),
+      '#chart_type' => 'pie',
+      '#legend_position' => 'right',
+      '#data_labels' => TRUE,
+      '#tooltips' => TRUE,
+      '#colors' => array('#EE4644', '#FFD800', '#33CC33'),
+    );
+
+    $chart1['helpful'] = array(
+      '#type' => 'chart_data',
+      '#title' => t('How helpful'),
+      '#labels' => array_values(current($options)),
+      '#data' => array_values($rates['options']),
+    );
+
+    $output .= '<div class="col-md-6">' . drupal_render($chart1) . '</div>';
+
+    // Chart for "Why not helpful".
+    $result = db_query(
+     "SELECT
+        why.field_why_unhelpful_value AS reason,
+        COUNT(why.field_why_unhelpful_value) AS votes
+      FROM comment c
+        JOIN field_data_field_why_unhelpful why ON c.cid = why.entity_id
+      WHERE c.status = 1 AND c.nid = :nid
+      GROUP BY reason
+      ORDER BY reason", array(':nid' => $node->nid));
+
+    $whynot = array('1' => 0, '2' => 0, '3' => 0);
+
+    foreach ($result as $row) {
+      $whynot[$row->reason] = (int)$row->votes;
+    }
+
+    $chart2 = array(
+      '#type' => 'chart',
+      '#title' => t('Why not helpful:'),
+      '#chart_type' => 'pie',
+      '#legend_position' => 'right',
+      '#data_labels' => TRUE,
+      '#tooltips' => TRUE,
+    );
+    $chart2['whynot'] = array(
+      '#type' => 'chart_data',
+      '#title' => t('Why not helpful'),
+      '#labels' => array('Not related to my issue', 'Not enough information', 'Unclear information'),
+      '#data' => array_values($whynot),
+    );
+
+    $output .= '<div class="col-md-6">' . drupal_render($chart2) . '</div>';
+    $output .= '</div>';
+
+    $block['content'] = $output;
+    $block['subject'] = '';
+
+    drupal_add_js(drupal_get_path('module', 'feedbacks') . '/js/feedbacks-admin.js');
+    drupal_add_css(drupal_get_path('module', 'feedbacks') . '/css/feedbacks.css');
+  }
+
+  return $block;
+}
+
+function feedbacks_widget_options() {
+  $options = array();
+  $widgets = rate_get_active_widgets('node', 'page');
+  
+  foreach ($widgets as $wid => $widget) {
+    if ($widget->name == 'feedback') {
+      foreach ($widget->options as $option) {
+        $options[$wid][$option[0]] = $option[1];
+      }
+    }
+  }
+
+  return $options;
+}
+
+/**
+ * Implements hook_preprocess_status_messages().
+ */
+function feedbacks_preprocess_status_messages(&$vars) {
+  // Since we are using comments for feedback, alter the Drupal message accordingly.
+  if (isset($_SESSION['messages']['status'])) {
+    foreach ($_SESSION['messages']['status'] as $key => $message) {
+      if (strpos($message, 'Your comment has been') === 0) {
+        $_SESSION['messages']['status'][$key] = 'Thanks for your feedback!';
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * Implements feedbacks_apachesolr_index_documents_alter().
+ * Since we are using comments for feedback, we don't want them to be indexed.
+ */
+function feedbacks_apachesolr_index_documents_alter(array &$documents, $entity, $entity_type, $env_id) {
+  foreach ($documents as $doc) {
+    $doc->setField('ts_comments', '');
+  }
+}
+
+/**
+ * Implements hook_votingapi_results_alter().
+ *
+ * Add additional aggregation to support both average (percentage/points type) as well as option count (options type).
+ * Chunk of code copied from votingapi_votingapi_storage_standard_results().
+ * Assuming vote tag is 'vote' and the type is set to options type (admin/structure/rate/1/edit).
+ */
+function feedbacks_votingapi_results_alter(&$cache, $entity_type, $entity_id) {
+  $more_cache = array();
+
+  $sql  = "SELECT v.value_type, v.tag, ";
+  $sql .= "COUNT(v.value) as value_count, SUM(v.value) as value_sum  ";
+  $sql .= "FROM {votingapi_vote} v ";
+  $sql .= "WHERE v.entity_type = :type AND v.entity_id = :id ";
+  $sql .= "GROUP BY v.value_type, v.tag";
+  $results = db_query($sql, array(':type' => $entity_type, ':id' => $entity_id));
+
+  foreach ($results as $result) {
+    $more_cache[$result->tag]['percent']['count'] = $result->value_count;
+    $more_cache[$result->tag]['percent']['average'] = $result->value_sum / $result->value_count;
+  }
+
+  $cache['vote'] += $more_cache['vote'];
+}
+
+/**
+ * Implements hook_cron().
+ *
+ * Delete 1+ year old feedback and comments between 1-2am.
+ */
+function feedbacks_cron() {
+  if (date('G') === '1') {
+    $cids = db_query("SELECT cid FROM comment WHERE created < :year_ago
+      ORDER BY cid LIMIT 100", array(
+      ':year_ago' => REQUEST_TIME - 86400*365
+    ))->fetchCol();
+
+    if ($cids) {
+      comment_delete_multiple($cids);
+    }
+
+    $vids = db_query("SELECT vote_id FROM votingapi_vote WHERE timestamp < :year_ago
+      ORDER BY vote_id LIMIT 2000", array(
+      ':year_ago' => REQUEST_TIME - 86400*365
+    ))->fetchCol();
+
+    if ($vids) {
+      $old_votes = db_query('SELECT DISTINCT entity_type, entity_id FROM {votingapi_vote} WHERE vote_id IN (:vids)', array(':vids' => $vids));
+
+      db_delete('votingapi_vote')->condition('vote_id', $vids, 'IN')->execute();
+
+      foreach ($old_votes as $entity) {
+        votingapi_recalculate_results($entity->entity_type, $entity->entity_id, TRUE);
+      }
+    }
+
+    if ($cids or $vids) {
+      $cid_count = count($cids);
+      $vid_count = count($vids);
+      watchdog('feedbacks', "Removed $cid_count feedbacks and $vid_count rates that are 1+ year old.");
+    }
+  }
+}

@@ -1,0 +1,25 @@
+<?php
+
+/**
+ * @file
+ * Installation functions for editor_config module.
+ */
+
+function editor_config_install() {
+  // Give more weight so functions like editor_config_form_node_form_alter()
+  // gets executed later than menu_form_node_form_alter().
+  db_update('system')
+    ->fields(array('weight' => 1))
+    ->condition('name', 'editor_config', '=')
+    ->execute();
+}
+
+/**
+ * Update module weight.
+ */
+function editor_config_update_7001() {
+  db_update('system')
+    ->fields(array('weight' => 1))
+    ->condition('name', 'editor_config', '=')
+    ->execute();
+}

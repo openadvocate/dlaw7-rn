@@ -1,0 +1,51 @@
+.pane-rate-widget .pane-title {
+  font-size: 1.5em;
+}
+
+.rate-widget ul {
+  list-style: none;
+  padding: 0;
+  margin: 1em 0 1em;
+}
+
+.rate-widget ul li {
+  display: inline-block;
+  border: 1px solid #ccc;
+  padding: 2px 1em;
+  margin: 0 2em 0 0;
+}
+
+#comment-form .form-item-name,
+#comment-form .form-item-mail,
+#comment-form .form-item-homepage,
+#comment-form #edit-comment-body,
+#comment-form #edit-submit,
+#comment-form #disclaimer,
+.pane-node-comment-form,
+.pane-node-comment-form .pane-title,
+.rate-info {
+  display: none;
+}
+
+#comment-length-check {
+  font-size: 0.8em;
+  color: #666;
+  padding-left: 0.5em;
+}
+
+.comment .delete-comment {
+  display: inline-block;
+  font-size: 85%;
+  vertical-align: top;
+  margin-left: 1em;
+  font-style: normal;
+}
+
+.comment .delete-comment:hover,
+.comment .delete-comment:active {
+  text-decoration: none;
+}
+
+.comment .delete-comment .fa {
+  padding-right: 1px;
+}

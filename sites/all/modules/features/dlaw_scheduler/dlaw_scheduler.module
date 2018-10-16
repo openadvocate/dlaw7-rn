@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the DLAW Scheduler feature.
+ */
+
+include_once 'dlaw_scheduler.features.inc';

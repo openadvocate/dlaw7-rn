@@ -1,0 +1,57 @@
+a, .pagination > li > a, .pagination > li > span {
+  color: #990000; }
+  a:hover, .pagination > li > a:hover, .pagination > li > span:hover {
+    color: #660000; }
+
+a:visited {
+  color: #660000; }
+
+.form-control {
+  color: #333333; }
+
+.nav-tabs > li.active > a, .nav-tabs > li.active > a:hover, .nav-tabs > li.active > a:focus {
+  color: #333333; }
+
+.logotype-container {
+  line-height: 1.2em; }
+
+body {
+  color: #333333; }
+
+a:link, a:visited, a:active, a:focus {
+  color: #990000; }
+
+a:hover {
+  color: #660000; }
+
+.btn, .btn:link, .btn:visited, .btn:active, .btn:hover, .btn:focus,
+a.btn, a.btn:link, a.btn:visited, a.btn:active, a.btn:hover, a.btn:focus {
+  color: #fff; }
+
+.btn-primary, .btn-primary:link, .btn-primary:visited, .btn-primary:active, .btn-primary:hover, .btn-primary:focus,
+a.btn-primary, a.btn-primary:link, a.btn-primary:visited, a.btn-primary:active, a.btn-primary:hover, a.btn-primary:focus {
+  background-color: #990000;
+  border-color: #990000;
+  color: #fff; }
+  .btn-primary:hover, .btn-primary:link:hover, .btn-primary:visited:hover, .btn-primary:active:hover, .btn-primary:hover:hover, .btn-primary:focus:hover,
+  a.btn-primary:hover, a.btn-primary:link:hover, a.btn-primary:visited:hover, a.btn-primary:active:hover, a.btn-primary:hover:hover, a.btn-primary:focus:hover {
+    color: #fff; }
+  .btn-primary .active, .btn-primary:link .active, .btn-primary:visited .active, .btn-primary:active .active, .btn-primary:hover .active, .btn-primary:focus .active,
+  a.btn-primary .active, a.btn-primary:link .active, a.btn-primary:visited .active, a.btn-primary:active .active, a.btn-primary:hover .active, a.btn-primary:focus .active {
+    color: #fff;
+    background-color: #990000; }
+
+.btn-primary:hover {
+  background-color: #660000; }
+
+#simple-toc li.active a, #simple-toc li.active a:hover {
+  border-left: 1px solid #990000;
+  color: #990000; }
+
+#simple-toc li a:hover {
+  color: #990000 !important; }
+
+.btn-default {
+  background-color: #767676; }
+
+/*# sourceMappingURL=journal-override.css.map */

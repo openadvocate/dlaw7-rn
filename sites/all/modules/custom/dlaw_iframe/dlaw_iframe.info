@@ -1,0 +1,5 @@
+name = DLAW Iframe
+description = Include internal pages in an iframe.
+package = DLAW
+core = 7.x
+version = "7.x-0.1"

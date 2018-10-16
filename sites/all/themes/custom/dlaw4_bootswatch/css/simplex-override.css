@@ -1,0 +1,26 @@
+.form-control {
+  color: #333333; }
+
+.nav-tabs > li.active > a, .nav-tabs > li.active > a:hover, .nav-tabs > li.active > a:focus {
+  color: #333333; }
+
+body {
+  color: #333333; }
+
+#simple-toc {
+  background: none; }
+
+.simple-toc-parent #simple-toc li a:hover {
+  color: #d9230f !important; }
+
+#simple-toc li.active a, #simple-toc li.active a:hover {
+  border-left: 1px solid #d9230f;
+  color: #d9230f; }
+
+.btn-info, .btn-info:hover {
+  background-image: linear-gradient(#02a5de, #029acf 6%, #02749c); }
+
+a:visited {
+  color: #a91b0c; }
+
+/*# sourceMappingURL=simplex-override.css.map */

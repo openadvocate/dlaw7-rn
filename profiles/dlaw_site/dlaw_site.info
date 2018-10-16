@@ -1,0 +1,170 @@
+; Packaging information for dlaw_site
+name = "DLAW Site"
+description = "Install profile for DLAW"
+core = "7.x"
+; ----------
+; Dependencies
+; ----------
+; Administration
+dependencies[] = admin_menu
+dependencies[] = admin_menu_toolbar
+dependencies[] = menu_admin_per_menu
+dependencies[] = module_filter
+; Advanced CSS/JS Aggregation
+dependencies[] = advagg
+dependencies[] = advagg_css_compress
+dependencies[] = advagg_js_compress
+; Apache Solr
+dependencies[] = apachesolr_panels
+; Chaos tool suite
+dependencies[] = ctools
+dependencies[] = page_manager
+dependencies[] = views_content
+; Charts
+dependencies[] = charts
+dependencies[] = charts_google
+; Core
+dependencies[] = block
+dependencies[] = color
+dependencies[] = comment
+dependencies[] = contact
+dependencies[] = contextual
+dependencies[] = dashboard
+dependencies[] = dblog
+dependencies[] = field
+dependencies[] = field_sql_storage
+dependencies[] = field_ui
+dependencies[] = file
+dependencies[] = filter
+dependencies[] = help
+dependencies[] = image
+dependencies[] = list
+dependencies[] = menu
+dependencies[] = node
+dependencies[] = number
+dependencies[] = options
+dependencies[] = path
+dependencies[] = php
+dependencies[] = rdf
+dependencies[] = search
+dependencies[] = shortcut
+dependencies[] = statistics
+dependencies[] = system
+dependencies[] = taxonomy
+dependencies[] = text
+dependencies[] = trigger
+dependencies[] = user
+; DLAW
+dependencies[] = carousel
+dependencies[] = dlawdashb
+dependencies[] = dlawsettings
+dependencies[] = dlawsettings_appearance
+dependencies[] = dlawsettings_menu
+dependencies[] = dlawsettings_site_info
+dependencies[] = frontlayout
+dependencies[] = gtranslate
+dependencies[] = nsmi
+dependencies[] = quarkfield
+dependencies[] = readclearly
+dependencies[] = selectoradd
+dependencies[] = simple_toc
+dependencies[] = social_media_links
+dependencies[] = twitter_feed
+dependencies[] = zipvalidate
+; Date/Time
+dependencies[] = date
+dependencies[] = date_all_day
+dependencies[] = date_api
+dependencies[] = date_popup
+dependencies[] = date_repeat
+dependencies[] = date_repeat_field
+dependencies[] = date_views
+; Fields
+dependencies[] = addressfield
+dependencies[] = email
+dependencies[] = entityreference
+dependencies[] = field_group
+dependencies[] = link
+dependencies[] = multiupload_filefield_widget
+dependencies[] = telephone
+; Frontend
+dependencies[] = modernizr
+; Media
+dependencies[] = file_entity
+dependencies[] = imce
+dependencies[] = media
+; OAuth
+dependencies[] = oauth_common
+; Other
+dependencies[] = addressfield_staticmap
+dependencies[] = breakpoints
+dependencies[] = diff
+dependencies[] = entity
+dependencies[] = insert
+dependencies[] = linkchecker
+dependencies[] = menu_block
+dependencies[] = pathauto
+dependencies[] = soembed
+dependencies[] = strongarm
+dependencies[] = token
+dependencies[] = methyl_yellow
+; Panels
+dependencies[] = panels
+dependencies[] = panels_bootstrap_layouts
+dependencies[] = panels_node
+; Performance and scalability
+dependencies[] = httprl
+; Permissions
+dependencies[] = view_unpublished
+; Schema.org
+dependencies[] = schemaorg
+dependencies[] = schemaorg_ui
+; Search Toolkit
+dependencies[] = apachesolr
+dependencies[] = apachesolr_autocomplete
+dependencies[] = apachesolr_search
+dependencies[] = facetapi
+; Spam control
+dependencies[] = captcha
+dependencies[] = image_captcha
+; Statistics
+dependencies[] = google_analytics_api
+dependencies[] = googleanalytics
+; User interface
+dependencies[] = bootmenuprettify
+dependencies[] = ckeditor
+dependencies[] = extlink
+dependencies[] = jquery_update
+; Views
+dependencies[] = views
+dependencies[] = views_bootstrap
+dependencies[] = views_ui
+; Voting
+dependencies[] = rate
+dependencies[] = votingapi
+; Features
+dependencies[] = features
+dependencies[] = contact_content_type
+dependencies[] = contact_map
+dependencies[] = content_management
+dependencies[] = custom_views
+dependencies[] = dashboardga
+dependencies[] = dlaw_common
+dependencies[] = dlaw4_auto_alias
+dependencies[] = dlaw4_basic_page
+dependencies[] = dlaw4_contact
+dependencies[] = dlaw4_footer_menu
+dependencies[] = dlaw4_image
+dependencies[] = dlaw4_schema_org
+dependencies[] = dlaw4_section
+dependencies[] = editor_config
+dependencies[] = events
+dependencies[] = latest_news
+dependencies[] = library
+dependencies[] = page_content_type
+dependencies[] = roles_and_permissions
+dependencies[] = solr_search_panel
+dependencies[] = dlaw5_linkchecker
+dependencies[] = dlaw5_promoted
+dependencies[] = feedbacks
+

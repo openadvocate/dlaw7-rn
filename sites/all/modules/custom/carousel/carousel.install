@@ -1,0 +1,62 @@
+<?php
+
+/**
+ * @file
+ * Installation functions for carousel.
+ */
+
+/**
+ * Implements hook_uninstall.
+ */
+function carousel_uninstall() {
+  variable_del('carousel_slides');
+}
+
+/**
+ * Implements hook_schema().
+ */
+function carousel_schema() {
+  return carousel_schema_1();
+}
+
+function carousel_schema_1() {
+  $schema['slide_counter'] = array(
+    'description' => 'Store daily click counts for homepage slides.',
+    'fields' => array(
+      'id' => array(
+        'description' => 'The primary identifier.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'date' => array(
+        'type' => 'varchar',
+        'length' => '10',
+        'description' => 'Date.',
+        'not null' => TRUE,
+      ),
+      'count' => array(
+        'type' => 'int',
+        'description' => 'Daily counts of slides.',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(
+      'date' => array('date'),
+    ),
+    'primary key' => array('id'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Add slide_counter table.
+ */
+function carousel_update_7001() {
+  $schema = carousel_schema_1();
+
+  db_create_table('slide_counter', $schema['slide_counter']);
+}

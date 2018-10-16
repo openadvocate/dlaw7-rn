@@ -1,0 +1,31 @@
+#footer-region {
+  color: #fff; }
+
+#apachesolr-panels-search-block .btn.btn-primary.form-submit {
+  padding: 11px 13px; }
+
+#site-toolbar #apachesolr-panels-search-block .form-item-apachesolr-panels-search-form {
+  margin-right: -79px; }
+
+#simple-toc li.active a, #simple-toc li.active a:hover {
+  border-left: 1px solid #007fff;
+  color: #007fff; }
+
+#simple-toc li a:hover {
+  color: #007fff !important; }
+
+.field-name-field-attachments a, .field-name-field-links a {
+  text-decoration: none; }
+  .field-name-field-attachments a:hover, .field-name-field-links a:hover {
+    text-decoration: underline; }
+
+a:visited {
+  color: #0066cc; }
+
+.well {
+  background: #fdfdfd; }
+
+#footer-region a {
+  color: #66b2ff !important; }
+
+/*# sourceMappingURL=cosmo-override.css.map */

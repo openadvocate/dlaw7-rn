@@ -1,0 +1,30 @@
+Case 45682: PLNZ-M - Upgrade/Patch for OAuth2.0
+kkim
+
+Google stopped supporting OAuth 1.0 on 4/20/2015, which broke Google Analytics API module.
+
+I finally upgraded Google Analytics API module using posted patch, but not without struggles.
+
+Previous module was google_analytics_reports-7.x-1.3
+
+The patches are at https://www.drupal.org/node/1678306
+
+Used patch is https://www.drupal.org/node/1678306#comment-6731070. Later patches are for the latest dev version.
+
+First upgrade google_analytics_reports to 7.x-3.0-alpha1 and apply the patch. For example,
+
+$ patch -p1 < google_analytics_reports-oauth2-support_7.x-3.x_1678306-10.patch
+
+It will report one minor glitch in .info file, but it can easily be fixed manually.
+
+Any other combination of version and patch will produce too many patch errors. Unless you are comfortable manaually updating changes using diff file, it's not worth it.
+
+Since it now uses OAuth 2.0, it requies extra step of creating new OAuth Client ID/Secret as well as Redirect URIs. Google will tell you what the value of Redirect URIs should be. It should be http://example.com/admin/config/system/google-analytics-reports
+
+The structure of the returned data by Google also changed. Previously we checked for,
+
+if ($feed->results)
+
+but now it should be
+
+if (!empty($feed->results->rows))

@@ -1,0 +1,759 @@
+<?php 
+/**
+ * @file
+ * Saves image to an existing image field using Google Charts to render QR code.
+ */
+
+require_once('includes/class_vcard.php');
+require_once('includes/iCalcreator-master/iCalcreator.class.php');
+
+define('QR_BASE_URL', 'https://chart.googleapis.com/chart');
+
+/**
+ * Quarkfield Implements hook_node_presave().
+ */
+function quarkfield_node_presave($node) {
+  
+  // Save QR code image for vCard
+  if(in_array($node->type, quarkfield_get_node_types_for_vcard())) {
+
+    $url = quarkfield_get_vcard_qr_url($node);
+    if (!empty($url)) {    
+      $filename = $node->title . '.png';
+      $image = file_get_contents($url);    
+      $file = file_save_data($image, 'public://'. $filename, FILE_EXISTS_RENAME);
+      if ($file) {      
+        $node->field_qr_vcard = array(LANGUAGE_NONE => array('0' => (array)$file));
+      }
+    }
+  }
+  // if ( (in_array($node->type, quarkfield_get_node_types_for_vevent())) && (!empty($node->field_calendar[LANGUAGE_NONE][0]['value'])) ) {
+  //   dpm($node);
+  //   $url = quarkfield_get_vevent_qr_url($node);
+  //   if (!empty($url)) {    
+  //     $filename = $node->title . '.png';
+  //     $image = file_get_contents($url);    
+  //     $file = file_save_data($image, 'public://'. $filename, FILE_EXISTS_RENAME);
+  //     if ($file) {      
+  //       $node->field_vevent = array(LANGUAGE_NONE => array('0' => (array)$file));
+  //     }
+  //   }
+  // }
+}
+
+/**
+ * Quarkfield Implements hook_action_info().
+ */
+function quarkfield_action_info() {
+  return array(    
+    'quarkfield_generate_qr_link1' => array(
+      'type' => 'node',
+      'label' => t('Generate QR Code for Node'),
+      'configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+  );
+}
+
+function quarkfield_generate_qr_link1(&$entity, $context = array()) {
+  
+  $type_to_set_QR_url_for = variable_get('content_type_to_generate_for',"___none___");
+
+  //dsm($entity);
+  if ($type_to_set_QR_url_for !== "___none___") {
+    if ( !empty($entity->type) && (!empty($entity->type) == $type_to_set_QR_url_for)) {
+
+      $field_to_save_qr_in = variable_get('filed_to_populate_with_qr_code',"___none___");
+      if ($field_to_save_qr_in !== "___none___") {
+        // field exist but empty
+        if ( (!empty($entity->$field_to_save_qr_in)) && (empty($entity->{$field_to_save_qr_in}[LANGUAGE_NONE])) ){
+
+          $url = quarkfield_get_qr_url_for_link($entity->vid);
+
+          if (!empty($url)) {
+            
+            $filename = $entity->title . '.png';
+            $image = file_get_contents($url);    
+            $file = file_save_data($image, 'public://'. $filename, FILE_EXISTS_RENAME);
+            if ($file) {      
+              $entity->$field_to_save_qr_in = array(LANGUAGE_NONE => array('0' => (array)$file));
+            }
+          }
+
+        }
+        
+      }
+      if (function_exists('dsm')) {
+      }
+    }
+  }
+}
+
+function quarkfield_get_node_types_for_vcard(){
+  return array("contact");
+}
+
+function quarkfield_get_node_types_for_vevent(){
+  return array("page");
+}
+
+function quarkfield_get_qr_url_for_link($nodeid){
+
+  global $base_url;
+  $qr_width = variable_get('quarkfield_width_print', '100');
+  $qr_height = variable_get('quarkfield_height_print', '100');
+  $error_correction_level = 'L';
+  $qr_margin = 0;
+
+  $str = $base_url . "/node/" . $nodeid;
+  if (!empty($str)) {
+    $data_str = urlencode ( $str );
+    $qr_image_url = QR_BASE_URL . "?chs=" . $qr_width . "x" . $qr_height . "&cht=qr&chl=" . $data_str . '&chld=' . $error_correction_level . '|' . $qr_margin;
+
+    return $qr_image_url;
+  }else{
+    return false;
+  }
+
+}
+
+function quarkfield_get_vcard_qr_url($node){
+  $qr_width = variable_get('quarkfield_vcard_height', '250'); 
+  $qr_height = variable_get('quarkfield_vcard_height', '250'); 
+  $error_correction_level = 'L';
+  $qr_margin = 0;
+
+  $str = quarkfield_get_vcard($node, true);
+  if (!empty($str)) {
+    $data_str = urlencode ( $str );
+    $qr_image_url = QR_BASE_URL . "?chs=" . $qr_width . "x" . $qr_height . "&cht=qr&chl=" . $data_str . '&chld=' . $error_correction_level . '|' . $qr_margin;
+
+    return $qr_image_url;
+  }else{
+    return false;
+  }
+}
+
+function quarkfield_format_date($timestamp) {
+  if (empty($timestamp)) return '';
+  
+  $interval = REQUEST_TIME - $timestamp;
+
+  // Display date if more than 7 days
+  if ($interval > 604800) {
+    return date('M j, Y', $timestamp);
+  }
+  else {
+    $ago = format_interval($interval, 1);
+    return $ago == '1 day' ? t('Yesterday') : $ago . t(' ago');
+  }
+}
+
+function quarkfield_get_vevent($node){
+
+  if (!empty($node->field_date[LANGUAGE_NONE][0])) {
+    
+    $tz = $node->field_date[LANGUAGE_NONE][0]['timezone'];
+
+    $config = array( "unique_id" => $node->title, "TZID" => $tz );
+    $v = new vcalendar( $config );
+    $v->setProperty( "X-WR-TIMEZONE", $tz );
+
+    $vevent = & $v->newComponent( "vevent" );                  // create an event calendar component
+
+    $d = date( "Y-m-d H:i:s",$node->field_date[LANGUAGE_NONE][0]['value'] );    
+    $tzFr = $node->field_date[LANGUAGE_NONE][0]['timezone'];
+    $vevent->setProperty( "dtstart", $d );
+    
+    if (!empty($node->field_date[LANGUAGE_NONE][0]['value2'])){
+      $d2 = date( "Y-m-d H:i:s",$node->field_date[LANGUAGE_NONE][0]['value2'] );      
+      $vevent->setProperty( "dtend", $d2 );
+    }
+
+    if (!empty($node->field_date[LANGUAGE_NONE][0]['rrule'])){
+      // $string = 'RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=TU;COUNT=5;WKST=SU'; // This is the string you already have.
+
+      $string = $node->field_date[LANGUAGE_NONE][0]['rrule'];
+      $string = str_replace("RRULE:", "", $string);
+      $arr = explode(';',$string);
+      $arr2 = array();
+
+      foreach ($arr as $key => $value) {
+         if (($tmp = strstr($value, '=')) !== false) {        
+         $temp_arr = explode("=", $value, 2);
+           $first_part = $temp_arr[0];
+           $arr2[$first_part] = substr($tmp, 1);
+        }
+      }
+      $vevent->setProperty( "rrule", $arr2);
+    }
+    $vevent->setProperty( "summary", $node->title );
+    $v->returnCalendar();
+
+  } else {
+    return false;
+  }
+
+}
+
+function quarkfield_get_vcard($node, $as_string){
+
+  $vc = new vcard();
+  $vc->data['first_name'] = $node->title;
+
+
+  if (!empty($node->field_contact_address[LANGUAGE_NONE][0]['thoroughfare'])) {
+    $vc->data['work_address'] = $node->field_contact_address[LANGUAGE_NONE][0]['thoroughfare'];
+  }
+  if (!empty($node->field_contact_address[LANGUAGE_NONE][0]['premise'])) {
+    $vc->data['work_address'] .= " " . $node->field_contact_address[LANGUAGE_NONE][0]['premise'];
+  }
+  
+  if (!empty($node->field_contact_address[LANGUAGE_NONE][0]['locality'])) {
+    $vc->data['work_city'] = $node->field_contact_address[LANGUAGE_NONE][0]['locality'];
+  }
+  
+  if (!empty($node->field_contact_address[LANGUAGE_NONE][0]['postal_code'])) {
+    $vc->data['work_postal_code'] = $node->field_contact_address[LANGUAGE_NONE][0]['postal_code'];
+  }
+  
+  if (!empty($node->field_contact_address[LANGUAGE_NONE][0]['administrative_area'])) {
+    $vc->data['work_state'] = $node->field_contact_address[LANGUAGE_NONE][0]['administrative_area'];
+  }
+
+  if (!empty($node->field_contact_phone[LANGUAGE_NONE][0]['value'])) {
+    $vc->data['cell_tel'] = $node->field_contact_phone[LANGUAGE_NONE][0]['value'];
+  }
+  
+  if (!empty($node->field_email[LANGUAGE_NONE][0]['email'])) {
+    $vc->data['email1'] = $node->field_email[LANGUAGE_NONE][0]['email'];
+  }
+  
+  if (!empty($node->field_contact_url[LANGUAGE_NONE][0]['url'])) {
+    $vc->data['url'] = $node->field_contact_url[LANGUAGE_NONE][0]['url'];
+  }
+
+  if ($as_string) {
+    return $vc->string();
+  }
+  $vc->filename = "$node->title";
+  return $vc;
+}
+
+/**
+ * Quarkfield implements Hook_form_alter.
+ * to hide QR image fields in node edit form
+ */
+function quarkfield_form_alter(&$form, &$form_state, $form_id) {
+      
+  // Hide vCard Field
+  $quarkfield_node_types_for_vcard_names = quarkfield_get_node_types_for_vcard();
+  foreach ($quarkfield_node_types_for_vcard_names as $key => $value) {
+    $quarkfield_node_types_for_vcard_names[$key] = $value . "_node_form";
+  }
+  
+  if(in_array($form_id, $quarkfield_node_types_for_vcard_names)) {
+    $form['field_qr_vcard'][LANGUAGE_NONE][0]['#title'] .= " - Automatically generated";
+    $form['field_qr_vcard']['#attributes']['style'] = 'opacity:0.5;';
+  }
+
+  // Hide vEvent Field
+  $quarkfield_node_types_for_vevent_names = quarkfield_get_node_types_for_vevent();
+  foreach ($quarkfield_node_types_for_vevent_names as $key => $value) {
+    $quarkfield_node_types_for_vevent_names[$key] = $value . "_node_form";
+  }
+  
+  if(in_array($form_id, $quarkfield_node_types_for_vevent_names)) {
+    $form['field_vevent'][LANGUAGE_NONE][0]['#title'] .= " - Automatically generated";
+    $form['field_vevent']['#attributes']['style'] = 'opacity:0.5;';
+  }
+
+  $hide_quarkfield_image = variable_get('hide_field_to_populate_on_node_edit_form',1); 
+  if ($hide_quarkfield_image != 0) {
+    $type_to_set_QR_url_for = variable_get('content_type_to_generate_for',"___none___");
+    if ($type_to_set_QR_url_for !== "___none___") {
+      $type_to_set_QR_url_for_node_form_id = $type_to_set_QR_url_for . "_node_form";
+      if ($form_id == $type_to_set_QR_url_for_node_form_id) {
+        $field_to_save_qr_in = variable_get('filed_to_populate_with_qr_code',"___none___");
+        if ($field_to_save_qr_in !== "___none___") {
+          $form[$field_to_save_qr_in][LANGUAGE_NONE][0]['#title'] .= " - Automatically generated";
+          $form[$field_to_save_qr_in]['#attributes']['style'] = 'display:none;';
+        }
+      }
+    }
+  }
+
+
+}
+
+function quarkfield_save_v_card($node_id){
+  $node = node_load($node_id);
+  $vc = quarkfield_get_vcard($node, FALSE);
+  $vc->download();
+}
+
+function quarkfield_save_v_event($node_id){
+  $node = node_load($node_id);
+  $ve = quarkfield_get_vevent($node, FALSE);  
+}
+
+
+
+/**
+ * Quarkfield Implements hook_menu().
+ */
+function quarkfield_menu() {
+  $items = array();
+  $items['v-card/%'] = array(
+    'access callback' => TRUE,    
+    'page callback' => 'quarkfield_save_v_card',
+    'page arguments' => array(1),
+    'type' => MENU_CALLBACK,
+  );
+  $items['v-event/%'] = array(
+    'access callback' => TRUE,    
+    'page callback' => 'quarkfield_save_v_event',
+    'page arguments' => array(1),
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/config/system/quarkfield'] = array(
+    'title' => 'Quarkfield Generator',
+    'description' => 'Configuration for the Quarkfield Generator.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('quarkfield_admin_settings_form'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+function quarkfield_block_info() {
+  $blocks['qr_node_tools'] = array(
+    'info' => t('Quarkfield Node Tools'),
+    'cache' => DRUPAL_CACHE_PER_ROLE,
+  );
+  $blocks['qr_code'] = array(
+    'info' => t('Quarkfield Generator'),
+    'cache' => DRUPAL_CACHE_PER_ROLE,
+  );
+  $blocks['qr_code_expandable'] = array(
+    'info' => t('Quarkfield Generator Expandable'),
+    'cache' => DRUPAL_CACHE_PER_ROLE,
+  );
+  return $blocks;
+}
+
+/**
+ * Quarkfield Implements hook_block_view().
+ *
+ * Choose block to render (1 choice currently).
+ */
+function quarkfield_block_view($delta = '') {
+  switch ($delta) {
+
+    case 'qr_node_tools':
+      $block['subject'] = t('Quarkfield Node Tools');
+      $block['content'] = quarkfield_contents($delta);
+      $js_to_pass = array(
+          'googleQRcode' => array(
+          'height' => variable_get('quarkfield_height_click', '100'), 
+          'width' => variable_get('quarkfield_width_click', '100'),
+          'whenShow' => variable_get('quarkfield_when_show', ''),
+          'url' => url(current_path(), array('absolute' => TRUE)),
+        ),
+      );
+      drupal_add_css(drupal_get_path('module', 'quarkfield') . '/css/quarkfield.css');
+      drupal_add_js($js_to_pass, 'setting');
+      break;
+      
+    case 'qr_code':
+      $block['subject'] = t('Quarkfield Generator');
+      $block['content'] = quarkfield_contents($delta);
+      break;
+
+    case 'qr_code_expandable':
+        // Variables to make available to JS!
+        $js_to_pass = array(
+          'googleQRcode' => array(
+            'height' => variable_get('quarkfield_height_click', '100'), 
+            'width' => variable_get('quarkfield_width_click', '100'),
+            'whenShow' => variable_get('quarkfield_when_show', ''),
+            'url' => url(current_path(), array('absolute' => TRUE)),
+          ),
+        );
+        drupal_add_js($js_to_pass, 'setting');
+
+        $block['subject'] = t('Quarkfield Generator');
+        $block['content'] = quarkfield_contents($delta);
+        break;
+  }
+  return $block;
+}
+
+/**
+ * A custom module-defined block content function.
+ */
+function quarkfield_contents($which_block) {
+  switch ($which_block) {
+
+    case 'qr_node_tools':
+      return array(
+        '#markup' => _quarkfield_qr_node_tools_content(),
+        '#attached' => array(
+          'js' => array(
+            drupal_get_path('module', 'quarkfield') .
+            '/quarkfield-node-tools.js',
+          ),
+        ),   
+      );
+    break;
+
+    case 'qr_code':
+      // $render_type = variable_get('quarkfield_when_show', "on_pageload");
+        $google_qr_current_url = url(current_path(), array('absolute' => TRUE));
+        $google_qr_image_url = QR_BASE_URL . "?chs=" .
+        variable_get('quarkfield_width_print', '100')
+        . "x" . variable_get('quarkfield_height_print', '100') . 
+        "&cht=qr&chl=" . $google_qr_current_url . '&chld=L|0';
+
+        $google_qr_alt = t('QR Code for @url', array(
+            '@url' => $google_qr_current_url));
+
+        $output = theme('image', array(
+          'path' => $google_qr_image_url,
+          'alt' => $google_qr_alt,
+          'attributes' => array('class' => 'googleQRcode'),
+        ));
+      return array(
+        '#markup' => '<div id="google-qr-code">' . $output . '</div>',
+      );
+    break;
+
+    case 'qr_code_expandable':
+      $render_type = variable_get('quarkfield_when_show', "on_pageload");
+      return array(
+        '#markup' => '
+        <div class="panel-group" id="quarkfield-link-qr-panel">
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              <h4 class="panel-title">
+                <a id="quarkfield-link-panel-title" class="collapsed"  href="#quarkfield-link-panel-inner"><i class="fa fa-qrcode fa-lg"></i> QR code </a>        
+              </h4>
+            </div>
+            <div id="quarkfield-link-panel-inner" class="panel-collapse collapse" style="height: 0px;">
+              <div class="panel-body text-center">  
+                <div style="height:200px;">
+
+                </div>            
+              </div>
+            </div>
+          </div>
+        </div>',
+        '#attached' => array(
+          'js' => array(
+            drupal_get_path('module', 'quarkfield') .
+            '/quarkfield.js',
+          ),
+        ),
+      );
+  }
+}
+
+function _quarkfield_qr_node_tools_content(){
+
+  $output = '';
+  if(arg(0) == 'node' && is_numeric(arg(1))) {
+
+    $node = node_load(arg(1));
+
+    $output .= '<ul class="pagination" style="margin-bottom:0;">';
+    // Print -----------------------------
+    $output .= '<li><a id="qr_node_tools_print" href="#" onClick="window.print();return false"><i class="fa fa-print"></i> <span class="hidden-md hidden-sm">Print</span></a></li>';
+
+    // PDF -----------------------------
+    if ( module_exists('print')){
+      $output .= '<li><a id="qr_node_tools_pdf" href="/printpdf/'. $node->nid .'"><i class="fa fa-file-o"></i> PDF</a></li>';
+    }      
+   
+    // Save QR code image for vCard ----------------------------- skip for now
+    if(in_array($node->type, quarkfield_get_node_types_for_vcard())) {
+
+      $file = file_load( $node->field_qr_vcard['und'][0]['fid'] );
+
+      $hero_image = array(
+        'path' => $file->uri,
+        'width' => "240",
+        'height' => "300",
+        );
+    
+       $output .= '
+        <li>
+          <a id="qr_node_tools_qr_link" class="dropdown-toggle" data-toggle="dropdown" href="#">
+            <i class="fa fa-qrcode"></i> <span class="hidden-md hidden-sm">Scan</span>
+          </a>
+          <ul id="qr_node_tools_qr_link_content" class="dropdown-menu" style="width:100%;">
+            <li style="width:100%; min-height:200px;" class="text-center">'
+            . theme_image(array('path' => $file->uri, 'attributes' => array('class' => ''))) .
+            '</li>            
+          </ul>
+        </li>';
+
+      $output .= '<li><a id="qr_node_tools_vcard_d" href="/v-card/'. $node->nid .'"><i class="fa fa-download hidden-md hidden-sm"></i> vCard</a></li>';
+    }else{
+    
+      $output .= '
+        <li>
+          <a id="qr_node_tools_qr_link" class="dropdown-toggle" data-toggle="dropdown" href="#">
+            <i class="fa fa-qrcode"></i> <span class="hidden-md hidden-sm">Scan</span>
+          </a>
+          <ul id="qr_node_tools_qr_link_content" class="dropdown-menu" style="width:100%;">
+            <li style="width:100%; min-height:200px;">
+            </li>            
+          </ul>
+        </li>';
+
+      }
+      
+      if(in_array($node->type, quarkfield_get_node_types_for_vevent())) {
+        if (!empty($node->field_date[LANGUAGE_NONE][0])) {
+          $output .= '<li><a id="qr_node_tools_vevent_d" href="/v-event/'. $node->nid .'"><i class="fa fa-calendar hidden-md hidden-sm"></i> iCal</a></li>';
+        }
+      }
+
+    $output .= '</ul>';
+  }
+  return '<div id="qr_node_tools">' . $output . '</div>';
+}
+
+
+function _get_options_for_qr_code_content_type_dropdown(){
+  $contentypes = node_type_get_types();
+  $options = array();
+
+  $options["___none___"] = "- none -";
+  foreach ($contentypes as $key => $value) {
+    $options[$value->type] = $value->type;
+  }
+  return $options;
+}
+
+
+function _get_options_for_qr_code_image_field_dropdown(){
+  $contentypes = node_type_get_types();
+  $options = array();
+  $fields = array();
+
+  $options["___none___"] = "- none -";
+  foreach ($contentypes as $key => $value) {
+    $fields = field_info_instances("node", $value->type);
+    foreach ($fields as $field_key => $field_value) {
+
+      if ( !empty($field_value['display']['default']['type']) && ($field_value['display']['default']['type'] == "image")) {
+        $options[$field_key] = $value->type . " -- " . $field_key;        
+      }
+    }
+  }
+  return $options;
+}
+
+
+/**
+ * Creation of admin settings form for callback.
+ */
+function quarkfield_admin_settings_form($form, &$form_state) {
+  
+  $form['quarkfield_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('QR code for node URL: Field configuration'),
+    '#description' => t(''),
+  );  
+
+  $form['quarkfield_settings']['content_type_to_generate_for'] = array(
+    '#type' => 'select',
+    '#title' => t('Content type to generate QR code for:'),
+    '#options' => _get_options_for_qr_code_content_type_dropdown(),
+    '#default_value' => variable_get('content_type_to_generate_for',"___none___"),
+    '#required' => FALSE,
+    '#description' => t(''),
+  );
+
+  $form['quarkfield_settings']['filed_to_populate_with_qr_code'] = array(
+    '#type' => 'select',
+    '#title' => t('Image Field to save generated QR code:'),
+    '#options' => _get_options_for_qr_code_image_field_dropdown(),
+    '#default_value' => variable_get('filed_to_populate_with_qr_code',"___none___"),
+    '#required' => FALSE,
+    '#description' => t(''),
+  );
+
+  $form['quarkfield_settings']['hide_field_to_populate_on_node_edit_form'] = array(
+    '#type' => 'select',
+    '#title' => t('Hide Image Field on Node Edit Form:'),
+    '#options' => array(
+      0 => t('No'),
+      1 => t('Yes'),
+    ),
+    '#default_value' => variable_get('hide_field_to_populate_on_node_edit_form',1),
+    '#required' => FALSE,
+    '#description' => t(''),
+
+    
+    );
+
+  $form['quarkfield_image_settings_print'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('QR code for node URL: Print size configuration'),
+    '#description' => t('Configure QR code width and height here. There is a
+  maximum size of 1000 pixels for any single dimension, and a total size
+  of 300,000 pixels'),
+  );
+
+  $form['quarkfield_image_settings_print']['quarkfield_height_print'] = array( 
+    '#type' => 'textfield',
+    '#title' => t('Printed QR Code Height'),
+    '#default_value' => variable_get('quarkfield_height_print', '100'), 
+    '#size' => 40,
+    '#maxlength' => 255,
+    '#required' => TRUE,
+    '#description' => t('Enter the QR Code Height'),
+    '#element_validate' => array('_quarkfield_max_single_dimension'),
+  );
+
+  $form['quarkfield_image_settings_print']['quarkfield_width_print'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Printed QR Code Width'),
+    '#default_value' => variable_get('quarkfield_width_print', '100'),
+    '#size' => 40,
+    '#maxlength' => 255,
+    '#required' => TRUE,
+    '#description' => t('Enter the QR Code Width'),
+    '#element_validate' => array('_quarkfield_max_single_dimension'),
+  );
+
+  $form['quarkfield_image_settings_click'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Node Tools: QR code URL'),
+    '#description' => t('Configure QR code width and height of the QR code in the Node Tools. There is a
+  maximum size of 1000 pixels for any single dimension, and a total size
+  of 300,000 pixels'),
+  );
+
+  $form['quarkfield_image_settings_click']['quarkfield_when_show'] = array(
+    '#type' => 'select',
+    '#title' => t('When to render QR Code'),
+    '#options' => array(
+      ("on_pageload") => t('On Page Load'),
+      // ("on_click") => t('On Click'),
+    ),
+    '#default_value' => variable_get('quarkfield_when_show', ("on_pageload")),
+    '#required' => FALSE,
+    '#description' => t(''),
+  );
+
+  $form['quarkfield_image_settings_click']['quarkfield_height_click'] = array( 
+    '#type' => 'textfield',
+    '#title' => t('QR Code Height'),
+    '#default_value' => variable_get('quarkfield_height_click', '100'), 
+    '#size' => 40,
+    '#maxlength' => 255,
+    '#required' => TRUE,
+    '#description' => t('Enter the QR Code Height'),
+    '#element_validate' => array('_quarkfield_max_single_dimension'),
+  );
+
+  $form['quarkfield_image_settings_click']['quarkfield_width_click'] = array(
+    '#type' => 'textfield',
+    '#title' => t('QR Code Width'),
+    '#default_value' => variable_get('quarkfield_width_click', '100'),
+    '#size' => 40,
+    '#maxlength' => 255,
+    '#required' => TRUE,
+    '#description' => t('Enter the QR Code Width'),
+    '#element_validate' => array('_quarkfield_max_single_dimension'),
+  );
+
+
+  $form['quarkfield_vcard_image_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Node Tools: vCard'),
+    '#description' => t('Configure QR code width and height here. There is a
+  maximum size of 1000 pixels for any single dimension, and a total size
+  of 300,000 pixels'),
+  );
+
+  $form['quarkfield_vcard_image_settings']['quarkfield_vcard_height'] = array( 
+    '#type' => 'textfield',
+    '#title' => t('QR Code Height for vCard'),
+    '#default_value' => variable_get('quarkfield_vcard_height', '250'), 
+    '#size' => 40,
+    '#maxlength' => 255,
+    '#required' => TRUE,
+    '#description' => t('Enter the QR Code Height for vCard'),
+    '#element_validate' => array('_quarkfield_max_single_dimension'),
+  );
+
+  $form['quarkfield_vcard_image_settings']['quarkfield_vcard_width'] = array(
+    '#type' => 'textfield',
+    '#title' => t('QR Code Width for vCard'),
+    '#default_value' => variable_get('quarkfield_vcard_width', '250'),
+    '#size' => 40,
+    '#maxlength' => 255,
+    '#required' => TRUE,
+    '#description' => t('Enter the QR Code Width for vCard'),
+    '#element_validate' => array('_quarkfield_max_single_dimension'),
+  );
+
+  $form['#validate'][] = 'quarkfield_max_total_px';
+  return system_settings_form($form);
+}
+
+/**
+ * Custom function. Field Validation due to max pixel size of 100 pixels.
+ */
+function _quarkfield_max_single_dimension($element, &$form_state) {
+  if (!empty($element['#value']) && !is_numeric($element['#value'])) {
+    form_error($element, t('Has to be a number. Do not include "px"'));
+  }
+  else {
+    if (!empty($element['#value']) && $element['#value'] > 1000) {
+      form_error($element, t('Google does not allow single dimensions over 1000px'));
+    }
+  }
+}
+
+/**
+ * Custom Form validation for a maximum dimension size of 300,000 pixels.
+ */
+function quarkfield_max_total_px($form, &$form_state) {
+
+  $qr_vcard_width = $form_state['values']['quarkfield_vcard_width'];
+  $qr_vcard_height = $form_state['values']['quarkfield_vcard_height']; 
+
+  $total_vcard_pixels = $qr_vcard_width * $qr_vcard_height;
+  if (is_numeric($total_vcard_pixels) && $total_vcard_pixels > 300000) {
+    $error_text = t('Total dimensions cannot exceed 300,000px. Currently at @total',
+      array('@total' => $total_vcard_pixels));
+    form_set_error('quarkfield_vcard_image_settings', t($error_text));
+  }
+
+  $qr_width = $form_state['values']['quarkfield_width_click'];
+  $qr_height = $form_state['values']['quarkfield_height_click']; 
+
+  $total_pixels_click = $qr_width * $qr_height;
+  if (is_numeric($total_pixels_click) && $total_pixels_click > 300000) {
+    $error_text = t('Total dimensions cannot exceed 300,000px. Currently at @total',
+      array('@total' => $total_pixels_click));
+    form_set_error('quarkfield_image_settings_print', t($error_text));
+  }
+
+  $qr_width = $form_state['values']['quarkfield_width_print'];
+  $qr_height = $form_state['values']['quarkfield_height_print']; 
+
+  $total_pixels = $qr_width * $qr_height;
+  if (is_numeric($total_pixels) && $total_pixels > 300000) {
+    $error_text = t('Total dimensions cannot exceed 300,000px. Currently at @total',
+      array('@total' => $total_pixels));
+    form_set_error('quarkfield_image_settings_print', t($error_text));
+  }
+
+}

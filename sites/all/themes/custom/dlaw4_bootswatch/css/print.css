@@ -1,0 +1,178 @@
+body {
+  background: white;
+  font-size: 12pt;
+  font-family: Georgia, "Times New Roman", Times, serif; }
+
+table {
+  font-size: 12pt; }
+
+td, th {
+  padding: 3px; }
+
+a:link,
+a:visited {
+  background: transparent;
+  font-weight: bold;
+  text-decoration: underline; }
+
+.print-only {
+  display: block; }
+
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+  font-family: sans-serif;
+  font-weight: bold; }
+
+h1 {
+  font-size: 18pt; }
+
+h2 {
+  font-size: 16pt; }
+
+h3 {
+  font-size: 13pt; }
+
+h4 {
+  font-size: 12pt; }
+
+#toolbar-handler {
+  display: none; }
+
+.tabs--primary .nav .nav-tabs {
+  display: none; }
+
+.logo-container {
+  display: none; }
+
+.panel-panel.right {
+  display: none; }
+.panel-panel.left {
+  width: 100%; }
+
+.branding {
+  display: block; }
+  .branding.navbar {
+    border-bottom: 2px solid; }
+  .branding .container {
+    padding: 0;
+    margin: 0; }
+
+.branding-data {
+  display: table;
+  width: 98%;
+  margin: 0 1%; }
+
+.name-container {
+  display: table-cell;
+  vertical-align: top;
+  float: none; }
+
+#qr-print-link {
+  display: table-cell; }
+  #qr-print-link img {
+    margin-bottom: 20px; }
+  #qr-print-link:after {
+    display: table;
+    content: "";
+    clear: both; }
+
+.site-link, .site-slogan.lead {
+  font-size: 12pt;
+  font-family: sans-serif;
+  font-weight: normal; }
+
+.site-slogan.lead {
+  font-style: italic; }
+
+.page-header {
+  margin: 0;
+  border-bottom: 0;
+  font-size: 22pt;
+  font-weight: bold;
+  padding-left: 10px;
+  padding-right: 10px; }
+
+#navbar {
+  display: none; }
+
+.tabs--primary.nav.nav-tabs {
+  display: none; }
+
+a:link.site-title-link:after, a:visited.site-title-link:after {
+  content: ""; }
+
+.pane-section-panel-pane-1, .pane-section-panel-pane-4, .logotype-container {
+  display: none; }
+
+#bottom-region {
+  display: none; }
+
+#footer-region {
+  margin: 0;
+  padding: 0;
+  margin-top: 1em;
+  border-top: 2px solid;
+  background: none;
+  text-align: left; }
+  #footer-region #footer-menu {
+    display: none; }
+  #footer-region .container.text-center {
+    text-align: left; }
+
+#the-title {
+  margin: 0; }
+
+a.site-title-link {
+  font-size: 16pt;
+  color: #000; }
+  a.site-title-link:link, a.site-title-link:visited {
+    text-decoration: none; }
+
+.alert {
+  display: none; }
+
+.lead {
+  font-size: 16pt;
+  color: #000;
+  margin: 0; }
+
+.container {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: black;
+  margin: 0 1%;
+  background: transparent none;
+  padding-top: 1em; }
+  .container.main-container {
+    margin: 0 1%; }
+
+.spacer-8 {
+  padding: 0; }
+
+.powered-by {
+  display: none; }
+
+.library-breadcrumb-wrapper {
+  display: none; }
+
+.field-name-body p {
+  page-break-inside: avoid; }
+
+.pane-content .pager {
+  display: none; }
+
+.region-footer {
+  display: none; }
+
+.field-name-field-attachments {
+  padding-bottom: 20px; }
+
+.pane-rate-widget {
+  display: none; }
+
+.btn {
+  padding: 2px 5px;
+  margin: 5px; }
+
+/*# sourceMappingURL=print.css.map */

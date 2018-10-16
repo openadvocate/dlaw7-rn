@@ -1,0 +1,584 @@
+<?php
+
+/**
+ * @file
+ * Site info section for DLAW settings.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function dlawsettings_site_info_menu() {
+  $items['admin/dashboard/appearance'] = array(
+    'title' => 'Appearance',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('dlawsettings_site_info_identity_form'),
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 1,
+  );
+
+  $items['admin/dashboard/appearance/site-identity'] = array(
+    'title' => 'Site Identity',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
+  );
+
+  $items['admin/dashboard/appearance/mission'] = array(
+    'title' => 'Home Page Mission',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('dlawsettings_site_info_mission_form'),
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 1,
+  );
+
+  $items['admin/dashboard/settings'] = array(
+    'title' => 'Site Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('dlawsettings_site_info_settings_form'),
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 10,
+  );
+
+  $items['admin/dashboard/settings/site-info'] = array(
+    'title' => 'Site Information',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
+  );
+
+  $items['admin/dashboard/settings/removeimage/%/%'] = array(
+    'title' => '',
+    'page callback' => 'dlawsettings_site_info_ajax_callback',
+    'page arguments' => array(4, 5),
+    'access arguments' => array('access dlaw dashboard'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Callback for menu admin/dashboard/appearance/site-identity.
+ */
+function dlawsettings_site_info_identity_form() {
+  drupal_add_js(drupal_get_path('module', 'dlawsettings_site_info') . '/dlawsettings_site_info.js');
+
+  $form['#attributes'] = array('enctype' => "multipart/form-data" );
+
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Site name'),
+    '#default_value' => strip_tags(variable_get('site_name', '')),
+    '#required' => TRUE,
+  );
+
+  $form['slogan'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Site slogan'),
+    '#default_value' => strip_tags(variable_get('site_slogan', '')),
+  );
+
+  // Site favicon image
+  $favicon_url = variable_get('sitesettings_favicon', '');
+  $favicon_fid = variable_get('sitesettings_favicon_fid', 0);
+  $favicon_image = theme('image', array('path' => $favicon_url));
+
+  if ($favicon_url) {
+    $form['favicon_preview'] = array(
+      '#markup' => '<div id="uploaded-favicon">' . $favicon_image . '<span style="display:none"><strong>Upload site favicon:</strong></span></div>
+      <b><a href="#" id="uploaded-favicon-button" onclick="dlawsettings_remove_image(\'#uploaded-favicon\', \'favicon\', ' . $favicon_fid . '); void(0);">Delete site favicon</a></b>',
+    );
+  }
+  else {
+    $form['favicon_preview'] = array(
+      '#markup' => '<strong>Upload site favicon:</strong>',
+    );
+  }
+
+  $form['favicon_upload'] = array(
+    '#type' => 'file',
+    '#description' => 'Maximum 48x48 pixels. File should be named favicon.ico',
+    '#size' => 45,
+    '#suffix' => '<br>',
+  );
+
+  // Site logo image
+  $logo_url = variable_get('sitesettings_default_logo', '');
+  $logo_fid = variable_get('sitesettings_default_logo_fid', 0);
+  $logo_image = theme('image_style', array('style_name' => 'thumbnail', 'path' => $logo_url));
+
+  if ($logo_url) {
+    $form['logo_preview'] = array(
+      '#markup' => '<div id="uploaded-image-1">' . $logo_image . '<span style="display:none"><strong>Upload site logo:</strong></span></div>
+      <b><a href="#" id="uploaded-image-1-button" onclick="dlawsettings_remove_image(\'#uploaded-image-1\', \'logo\', ' . $logo_fid . '); void(0);">Delete site logo</a></b>',
+    );
+  }
+  else {
+    $form['logo_preview'] = array(
+      '#markup' => '<strong>Upload site logo:</strong>',
+    );
+  }
+
+  // See system.admin.inc, lines 667 ...
+  $form['logo_upload'] = array(
+    '#type' => 'file',
+    '#description' => 'Maximum 240x240 pixels',
+    '#size' => 45,
+    '#suffix' => '<br>',
+  );
+
+  // Site banner image
+  /*$banner_url = variable_get('sitesettings_default_banner_image', '');
+  $banner_fid = variable_get('sitesettings_default_banner_image_fid', 0);
+  $banner_image = theme('image_style', array('style_name' => 'large', 'path' => $banner_url));
+
+  if ($banner_url) {
+    $form['banner_preview'] = array(
+      '#markup' => '<div id="uploaded-image-2">' . $banner_image . '<span style="display:none"><strong>Upload site banner image:</strong></span></div>
+      <b><a href="#" id="uploaded-image-2-button" onclick="dlawsettings_remove_image(\'#uploaded-image-2\', \'banner\', ' . $banner_fid . '); void(0);">Delete site banner image</a></b>',
+    );
+  }
+  else {
+    $form['banner_preview'] = array(
+      '#markup' => '<strong>Upload site banner image:</strong>',
+    );
+  }
+
+  $form['banner_upload'] = array(
+    '#type' => 'file',
+    '#description' => 'Maximum 940 pixels wide',
+    '#size' => 45,
+    '#suffix' => '<br>',
+  );*/
+
+
+  $form['logotype'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Logotype"),
+    '#default_value' => variable_get('logotype', ''),
+    '#description' => t("The organization's acronym, maximum 10 characters. Displayed as a logotype if website does not have a logo."),
+    '#maxlength' => 10,
+    '#suffix' => '<br><br>',
+  );
+
+  $form['copyrights'] = array(
+    '#type' => 'textarea',
+    '#title' => 'Copyright Information',
+    '#default_value' => variable_get('site_copyright_info', '&copy; [year] ' . variable_get('site_name', '')),
+    '#suffix' => '<br><br>',
+    '#rows' => 2,
+    '#resizable' => FALSE,
+    '#attributes' => array('style' => 'height: auto; width: 80%;'),
+    '#description' => 'Use [year] to print current year and &amp;copy; for &copy; symbol.',
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save settings',
+    '#prefix' => '<br>',
+  );
+
+  return $form;
+}
+
+/**
+ *  Submit handler for dlawsettings_site_info_identity_form().
+ */
+function dlawsettings_site_info_identity_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+
+  variable_set('site_name', strip_tags($values['name']));
+
+  variable_set('site_slogan', strip_tags($values['slogan']));
+
+  variable_set('logotype', $values['logotype']);
+
+  variable_set('site_copyright_info', $values['copyrights']);
+
+  // Upload theme logo
+  if ($file = file_save_upload('logo_upload', array('file_validate_extensions' => array('png jpg gif')), 'public://')) {
+    $file->status = 1;
+    file_save($file);
+    if ($theme_settings = variable_get('theme_settings', array())) {
+      $theme_settings['logo_path'] = $file->uri;
+      variable_set('theme_settings', $theme_settings);
+    }
+
+    if ($theme_default_settings = variable_get('theme_' . variable_get('theme_default', '') . '_settings', array())) {
+      $theme_default_settings['logo_path'] = $file->uri;
+      variable_set('theme_' . variable_get('theme_default', '') . '_settings', $theme_default_settings);
+    }
+
+    variable_set('sitesettings_default_logo', $file->uri);
+    variable_set('sitesettings_default_logo_fid', $file->fid);
+  }
+
+  // Upload banner image
+  /*if ($file2 = file_save_upload('banner_upload', array('file_validate_extensions' => array('png jpg gif')), 'public://')) {
+    $file2->status = 1;
+    file_save($file2);
+
+    variable_set('sitesettings_default_banner_image', $file2->uri);
+    variable_set('sitesettings_default_banner_image_fid', $file2->fid);
+  }*/
+
+  // Upload favicon image
+  if ($file3 = file_save_upload('favicon_upload', array('file_validate_extensions' => array('ico')), 'public://')) {
+    if ($file3->filename == 'favicon.ico') {
+      $file3->status = 1;
+      file_save($file3);
+
+      variable_set('sitesettings_favicon', $file3->uri);
+      variable_set('sitesettings_favicon_fid', $file3->fid);
+
+      if ($theme_set = variable_get('theme_dlaw4_bootswatch_settings', NULL)) {
+        $theme_set['default_favicon'] = 0;
+        $theme_set['favicon_path'] = $file3->uri;
+        variable_set('theme_dlaw4_bootswatch_settings', $theme_set);
+      }
+    }
+    else {
+      form_set_error('', 'Favicon file name should be favicon.ico');
+    }
+  }
+
+  drupal_set_message('Settings have been saved.', 'status');
+}
+
+/**
+ * Helper called in dlaw4_bootswatch/templates/pages/page.tpl.php
+ */
+function dlawsettings_site_info_theme_logo() {
+  return theme_get_setting('logo_path', variable_get('theme_default', ''));
+}
+
+/**
+ *  Menu callback for admin/dashboard/settings/removeimage/%/%.
+ */
+function dlawsettings_site_info_ajax_callback($type, $fid) {
+  $allowed_types = array('logo', 'banner', 'favicon', 'missionbg');
+
+  if (user_access('administer dlaw settings') and in_array($type, $allowed_types)) {
+    if ($type == 'logo') {
+      variable_set('sitesettings_default_logo', '');
+      variable_set('sitesettings_default_logo_fid', '');
+
+      if ($theme_default_settings = variable_get('theme_' . variable_get('theme_default', '') . '_settings', array())) {
+        $theme_default_settings['logo_path'] = '';
+        variable_set('theme_' . variable_get('theme_default', '') . '_settings', $theme_default_settings);
+      }
+
+      if ($theme_settings = variable_get('theme_settings', array())) {
+        $theme_settings['logo_path'] = '';
+        variable_set('theme_settings', $theme_settings);
+      }
+    }
+    elseif ($type == 'banner') {
+      variable_set('sitesettings_default_banner_image', '');
+      variable_set('sitesettings_default_banner_image_fid', '');
+    }
+    elseif ($type == 'favicon') {
+      variable_set('sitesettings_favicon', '');
+      variable_set('sitesettings_favicon_fid', 0);
+
+      if ($theme_set = variable_get('theme_dlaw4_bootswatch_settings', NULL)) {
+        $theme_set['default_favicon'] = 1;
+        $theme_set['favicon_path'] = '';
+        variable_set('theme_dlaw4_bootswatch_settings', $theme_set);
+      }
+    }
+    elseif ($type == 'missionbg') {
+      variable_set('sitesettings_default_missionbg_image', '');
+      variable_set('sitesettings_default_missionbg_image_fid', '');
+    }
+
+    dlawsettings_site_info_remove_file($fid);
+
+    echo 'deleted';
+  }
+
+  exit;
+}
+
+function dlawsettings_site_info_remove_file($fid) {
+  $file = file_load($fid);
+  file_delete($file);
+}
+
+/**
+ * Callback for menu admin/dashboard/appearance/mission.
+ */
+function dlawsettings_site_info_mission_form() {
+  drupal_add_js(drupal_get_path('module', 'dlawsettings_site_info') . '/dlawsettings_site_info.js');
+
+  $form['#attributes'] = array('enctype' => "multipart/form-data" );
+
+  $form['mission'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Mission statement'),
+    '#description' => t ('Mission statement will display as bold text on front page under slider.'),
+    '#rows' => 2,
+    '#resizable' => FALSE,
+    '#attributes' => array('style' => 'height: auto; width: 80%;', 'maxlength' => 240),
+    '#default_value' => strip_tags(variable_get('mission', '')),
+  );
+
+  $search_bar = variable_get('sitesettings_default_missionbg_search', 'none');
+  $search_bar = $search_bar == 'none' ? 'none' : 'below';
+  $form['missionbg_search'] = array(
+    '#type' => 'radios',
+    '#title' => t('Search bar on mission background'),
+    '#options' => array(
+      'none'  => 'No search bar',
+      'below' => 'Place search bar below mission statement',
+    ),
+    '#default_value' => $search_bar,
+  );
+
+  // Mission background image
+  $missionbg_url = variable_get('sitesettings_default_missionbg_image', '');
+  $missionbg_fid = variable_get('sitesettings_default_missionbg_image_fid', 0);
+  $missionbg_image = theme('image_style', array('style_name' => 'large', 'path' => $missionbg_url));
+
+  if ($missionbg_url) {
+    $form['missionbg_preview'] = array(
+      '#markup' => '<div id="uploaded-image-3">' . $missionbg_image . '<span style="display:none"><strong>Upload mission background image:</strong></span></div>
+      <b><a href="#" id="uploaded-image-3-button" onclick="dlawsettings_remove_image(\'#uploaded-image-3\', \'missionbg\', ' . $missionbg_fid . '); void(0);">Delete site mission background image</a></b>',
+    );
+  }
+  else {
+    $form['missionbg_preview'] = array(
+      '#markup' => '<strong>Upload site mission background image:</strong>',
+    );
+  }
+
+  $form['missionbg_upload'] = array(
+    '#type' => 'file',
+    '#description' => 'Minimum 2000x1125 pixels (jpg only)',
+    '#size' => 45,
+    '#suffix' => '<br>',
+  );
+
+  $form['missionbg_darken'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Darken background'),
+    '#default_value' => variable_get('sitesettings_default_missionbg_darken', 0),
+  );
+
+  $form['missionbg_diffuse'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Diffuse background'),
+    '#default_value' => variable_get('sitesettings_default_missionbg_diffuse', 0),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save settings',
+    '#prefix' => '<br>',
+  );
+
+  return $form;
+}
+
+/**
+ *  Submit handler for dlawsettings_site_info_mission_form().
+ */
+function dlawsettings_site_info_mission_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+
+  variable_set('mission', strip_tags($values['mission']) );
+  variable_set('sitesettings_default_missionbg_search', $values['missionbg_search']);
+  variable_set('sitesettings_default_missionbg_darken', $values['missionbg_darken']);
+  variable_set('sitesettings_default_missionbg_diffuse', $values['missionbg_diffuse']);
+
+  // Upload mission background image
+  if ($file = file_save_upload('missionbg_upload', array('file_validate_extensions' => array('jpg'), 'file_validate_image_resolution' => array(0, '2000x1125')), 'public://')) {
+    $file->status = 1;
+    file_save($file);
+
+    variable_set('sitesettings_default_missionbg_image', $file->uri);
+    variable_set('sitesettings_default_missionbg_image_fid', $file->fid);
+  }
+
+  drupal_set_message('Settings have been saved.', 'status');
+}
+
+/**
+ * Callback for menu admin/dashboard/settings/site-info.
+ */
+function dlawsettings_site_info_settings_form() {
+  drupal_add_js(drupal_get_path('module', 'dlawsettings_site_info') . '/dlawsettings_site_info.js');
+
+  $form['#attributes'] = array('enctype' => "multipart/form-data" );
+
+  $form['email'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Website manager's email"),
+    '#default_value' => variable_get('site_mail', ''),
+    '#required' => TRUE,
+    '#suffix' => '<br>',
+  );
+
+  $form['timezone'] = array(
+    '#type' => 'select',
+    '#title' => t('Site Time Zone'),
+    '#default_value' => variable_get('date_default_timezone', date_default_timezone_get()),
+    '#options' => system_time_zones(),
+    '#suffix' => '<br><br>',
+  );
+
+  $form['sidebar_page_util'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Display Page Utilities (Print, PDF, Scan)'),
+    '#default_value' => variable_get('sitesettings_page_util', 1),
+  );
+
+  $form['sidebar_page_social'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Display Page Social Media Buttons'),
+    '#default_value' => variable_get('sitesettings_page_social', 1),
+  );
+
+  $form['sidebar_page_toc'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Display Page Table of Contents'),
+    '#default_value' => variable_get('sitesettings_page_toc', 1),
+  );
+
+  $form['show_updated_date'] = array(
+    '#type' => 'markup',
+    '#markup' => '<br><b>Display Updated Date</b>',
+  );
+
+  $form['updated_date_page'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Pages'),
+    '#default_value' => variable_get('sitesettings_updated_date_page', 0),
+  );
+
+  $form['updated_date_contact'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Contacts'),
+    '#default_value' => variable_get('sitesettings_updated_date_contact', 0),
+  );
+
+  // Show image on news/event block on front page.
+  $form['show_block_image'] = array(
+    '#type' => 'markup',
+    '#markup' => '<br><b>Display Block Images</b>',
+  );
+  $form['news_block_image'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Display News Feature Images on home page'),
+    '#default_value' => variable_get('sitesettings_news_block_image', 0),
+  );
+
+  $form['event_block_image'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Display Events Feature Images on home page'),
+    '#default_value' => variable_get('sitesettings_event_block_image', 0),
+  );
+
+  // Yoast SEO
+  // As it is experimental, only show to sites that want the feature.
+  // Add in settings.php to enable
+  // $conf['dlaw_enable_yoast'] = TRUE;
+  if (variable_get('dlaw_enable_yoast', FALSE)) {
+    $form['show_yoast'] = array(
+      '#type' => 'markup',
+      '#markup' => '<br><b>Yoast SEO</b>',
+    );
+    $form['enable_yoast'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Enable Yoast SEO (For advanced users)'),
+      '#default_value' => (int)module_exists('yoast_seo'),
+    );
+  }
+
+
+  // Feedback settings
+  $result = db_query("SELECT comment, COUNT(nid) AS count FROM node
+    WHERE type = 'page' AND status = 1 GROUP BY comment");
+  $closed = $open = 0;
+  foreach ($result as $row) {
+    if ($row->comment == COMMENT_NODE_OPEN) {
+      $open += $row->count;
+    }
+    else { // Could be COMMENT_NODE_HIDDEN or COMMENT_NODE_CLOSED
+      $closed += $row->count;
+    }
+  }
+
+  $form['feedback_setting'] = array(
+    '#type' => 'radios',
+    '#title' => 'Page Feedback',
+    '#options' => array(
+      2 => 'Enable Feedback on all Pages',
+      1 => 'Disable Feedback on all Pages'
+    ),
+    '#description' => "<ul><li><b>Feedback is enabled on {$open} Pages and disabled on {$closed} Pages.</b></li>"
+      . "<li>You can set feedback settings individually at each Page's edit mode.</li>"
+      . "<li>Use this only if you want to change feedback settings on all Pages.</li></ul>",
+    '#prefix' => '<br>',
+    '#attributes' => array(
+      'onclick' => "return confirm('Are you sure to mass update feedback settings on all Pages?')",
+    ),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save settings',
+    '#prefix' => '<br>',
+  );
+
+  return $form;
+}
+
+/**
+ *  Submit handler for dlawsettings_site_info_settings_form().
+ */
+function dlawsettings_site_info_settings_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+
+  variable_set('site_mail', $values['email']);
+  // Also set contact's email
+  db_update('contact')->fields(array('recipients' => $values['email']))
+    ->execute();
+
+  variable_set('date_default_timezone',   $values['timezone']);
+
+  variable_set('sitesettings_page_util',   $values['sidebar_page_util']);
+  variable_set('sitesettings_page_social', $values['sidebar_page_social']);
+  variable_set('sitesettings_page_toc',    $values['sidebar_page_toc']);
+  variable_set('sitesettings_updated_date_page',    $values['updated_date_page']);
+  variable_set('sitesettings_updated_date_contact', $values['updated_date_contact']);
+  variable_set('sitesettings_news_block_image',     $values['news_block_image']);
+  variable_set('sitesettings_event_block_image',    $values['event_block_image']);
+
+  if (variable_get('dlaw_enable_yoast', FALSE)) {
+    if ($values['enable_yoast'] and !module_exists('yoast_seo')) {
+      module_enable(array('yoast_seo'), FALSE);
+    }
+    elseif (!$values['enable_yoast'] and module_exists('yoast_seo')) {
+      module_disable(array('yoast_seo'), FALSE);
+    }
+  }
+
+  if (!empty($values['feedback_setting'])) {
+    dlawsettings_site_update_feedback_settings($values['feedback_setting']);
+  }
+
+  drupal_set_message('Settings have been saved.', 'status');
+}
+
+function dlawsettings_site_update_feedback_settings($value) {
+  if (in_array($value, array(COMMENT_NODE_CLOSED, COMMENT_NODE_OPEN))) {
+    db_query("UPDATE node SET comment = :value WHERE type = 'page'",
+      array(':value' => $value));
+    db_query("UPDATE node_revision SET comment = :value WHERE nid IN (
+      SELECT nid FROM node WHERE type = 'page'
+    )", array(':value' => $value));
+  }
+}

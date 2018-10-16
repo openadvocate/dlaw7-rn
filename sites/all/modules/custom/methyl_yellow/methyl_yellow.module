@@ -1,0 +1,78 @@
+<?php
+
+/**
+ * Implements hook_preprocess_page().
+ */
+function methyl_yellow_preprocess_page(&$variables) {
+  $NODE_NOT_PUBLISHED = 0;
+  $NODE_PUBLISHED = 1;
+
+  if (!empty($variables['node'])) {
+    $status = $variables['node']->status;   
+
+     if ( $status == $NODE_NOT_PUBLISHED ){
+
+      $module_path = drupal_get_path('module', 'methyl_yellow');
+      drupal_add_css($module_path . '/css/methyl_yellow.css');
+      drupal_add_js($module_path . '/js/methyl_yellow.js');
+
+      $variables['methyl_yellow_unpubllished'] = get_indicator_structure();
+
+     }
+  }
+}
+
+///**
+// * Implements hook_block_info().
+// *
+// * This hook declares what blocks are provided by the module.
+// */
+//function methyl_yellow_block_info() {
+//  $blocks['methyl_yellow_unpubllished'] = array(
+//    'info' => t('Methyl Yellow Unpubllished Indicator'),
+//    'cache' => DRUPAL_NO_CACHE,
+//  );
+//  return $blocks;
+//}
+//
+///**
+// * Implements hook_block_view().
+// */
+//function methyl_yellow_block_view($delta = '') {
+//  switch ($delta) {
+//    case 'methyl_yellow_unpubllished':
+//      $block['subject'] = t('');
+//      $block['content'] = methyl_yellow_contents($delta);
+//      break;
+//  }
+//  return $block;
+//}
+//
+///**
+// * A module-defined block content function.
+// */
+//function methyl_yellow_contents($which_block) {
+//  switch ($which_block) {
+//    case 'methyl_yellow_unpubllished':
+//      $result = array(
+//        '#markup' => get_indicator_structure()
+//      );
+//      return $result;
+//  }
+//}
+
+/**
+ * A module-defined block content function.
+ */
+function get_indicator_structure(){
+    return
+      '<div class="methyl_wrapper">  
+        <div class="methyl_yellow_indicator">
+          <div class="unpublished_indicator">
+            Unpublished Draft
+          </div>
+          <div class="bottom_border">
+          </div>
+        </div>
+      </div>';
+}

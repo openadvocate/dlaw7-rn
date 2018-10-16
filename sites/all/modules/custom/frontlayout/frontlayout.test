@@ -1,0 +1,141 @@
+<?php
+
+/**
+ * @file
+ * Tests for frontlayout.module.
+ */
+
+/**
+ * Tests the frontlayout module blocks.
+ */
+class frontlayoutBlocksTestCase extends DrupalWebTestCase {
+  public static function getInfo() {
+    return array(
+      'name' => 'frontlayout blocks',
+      'description' => 'Test blocks as used by the frontlayout.',
+      'group' => 'frontlayout',
+    );
+  }
+
+  function setUp() {
+    parent::setUp();
+
+    // Create and log in an administrative user having access to the frontlayout.
+    $admin_user = $this->drupalCreateUser(array('access frontlayout', 'administer blocks', 'access administration pages', 'administer modules'));
+    $this->drupalLogin($admin_user);
+
+    // Make sure that the frontlayout is using the same theme as the rest of the
+    // site (and in particular, the same theme used on 403 pages). This forces
+    // the frontlayout blocks to be the same for an administrator as for a
+    // regular user, and therefore lets us test that the frontlayout blocks
+    // themselves are specifically removed for a user who does not have access
+    // to the frontlayout page.
+    theme_enable(array('stark'));
+    variable_set('theme_default', 'stark');
+    variable_set('admin_theme', 'stark');
+  }
+
+  /**
+   * Tests adding a block to the frontlayout and checking access to it.
+   */
+  function testfrontlayoutAccess() {
+    // Add a new custom block to a frontlayout region.
+    $custom_block = array();
+    $custom_block['info'] = $this->randomName(8);
+    $custom_block['title'] = $this->randomName(8);
+    $custom_block['body[value]'] = $this->randomName(32);
+    $custom_block['regions[stark]'] = 'frontlayout_main';
+    $this->drupalPost('admin/structure/block/add', $custom_block, t('Save block'));
+
+    // Ensure admin access.
+    $this->drupalGet('admin/frontlayout');
+    $this->assertResponse(200, 'Admin has access to the frontlayout.');
+    $this->assertRaw($custom_block['title'], 'Admin has access to a frontlayout block.');
+
+    // Ensure non-admin access is denied.
+    $normal_user = $this->drupalCreateUser();
+    $this->drupalLogin($normal_user);
+    $this->drupalGet('admin/frontlayout');
+    $this->assertResponse(403, 'Non-admin has no access to the frontlayout.');
+    $this->assertNoText($custom_block['title'], 'Non-admin has no access to a frontlayout block.');
+  }
+
+  /**
+   * Tests that frontlayout regions are displayed or hidden properly.
+   */
+  function testfrontlayoutRegions() {
+    $frontlayout_regions = frontlayout_region_descriptions();
+
+    // Ensure blocks can be placed in frontlayout regions.
+    $this->drupalGet('admin/frontlayout/configure');
+    foreach ($frontlayout_regions as $region => $description) {
+      $elements = $this->xpath('//option[@value=:region]', array(':region' => $region));
+      $this->assertTrue(!empty($elements), format_string('%region is an available choice on the frontlayout block configuration page.', array('%region' => $region)));
+    }
+
+    // Ensure blocks cannot be placed in frontlayout regions on the standard
+    // blocks configuration page.
+    $this->drupalGet('admin/structure/block');
+    foreach ($frontlayout_regions as $region => $description) {
+      $elements = $this->xpath('//option[@value=:region]', array(':region' => $region));
+      $this->assertTrue(empty($elements), format_string('%region is not an available choice on the block configuration page.', array('%region' => $region)));
+    }
+  }
+
+  /**
+   * Tests that the frontlayout module can be re-enabled, retaining its blocks.
+   */
+  function testDisableEnable() {
+    // Add a new custom block to a frontlayout region.
+    $custom_block = array();
+    $custom_block['info'] = $this->randomName(8);
+    $custom_block['title'] = $this->randomName(8);
+    $custom_block['body[value]'] = $this->randomName(32);
+    $custom_block['regions[stark]'] = 'frontlayout_main';
+    $this->drupalPost('admin/structure/block/add', $custom_block, t('Save block'));
+    $this->drupalGet('admin/frontlayout');
+    $this->assertRaw($custom_block['title'], 'Block appears on the frontlayout.');
+
+    $edit = array();
+    $edit['modules[Core][frontlayout][enable]'] = FALSE;
+    $this->drupalPost('admin/modules', $edit, t('Save configuration'));
+    $this->assertText(t('The configuration options have been saved.'), 'Modules status has been updated.');
+    $this->assertNoRaw('assigned to the invalid region', 'frontlayout blocks gracefully disabled.');
+    module_list(TRUE);
+    $this->assertFalse(module_exists('frontlayout'), 'frontlayout disabled.');
+
+    $edit['modules[Core][frontlayout][enable]'] = 'frontlayout';
+    $this->drupalPost('admin/modules', $edit, t('Save configuration'));
+    $this->assertText(t('The configuration options have been saved.'), 'Modules status has been updated.');
+    module_list(TRUE);
+    $this->assertTrue(module_exists('frontlayout'), 'frontlayout enabled.');
+
+    $this->drupalGet('admin/frontlayout');
+    $this->assertRaw($custom_block['title'], 'Block still appears on the frontlayout.');
+  }
+
+  /**
+   * Tests that administrative blocks are available for the frontlayout.
+   */
+  function testBlockAvailability() {
+    // Test "Recent comments", which should be available (defined as
+    // "administrative") but not enabled.
+    $this->drupalGet('admin/frontlayout');
+    $this->assertNoText(t('Recent comments'), '"Recent comments" not on frontlayout.');
+    $this->drupalGet('admin/frontlayout/drawer');
+    $this->assertText(t('Recent comments'), 'Drawer of disabled blocks includes a block defined as "administrative".');
+    $this->assertNoText(t('Syndicate'), 'Drawer of disabled blocks excludes a block not defined as "administrative".');
+    $this->drupalGet('admin/frontlayout/configure');
+    $elements = $this->xpath('//select[@id=:id]//option[@selected="selected"]', array(':id' => 'edit-blocks-comment-recent-region'));
+    $this->assertTrue($elements[0]['value'] == 'frontlayout_inactive', 'A block defined as "administrative" defaults to frontlayout_inactive.');
+
+    // Now enable the block on the frontlayout.
+    $values = array();
+    $values['blocks[comment_recent][region]'] = 'frontlayout_main';
+    $this->drupalPost('admin/frontlayout/configure', $values, t('Save blocks'));
+    $this->drupalGet('admin/frontlayout');
+    $this->assertText(t('Recent comments'), '"Recent comments" was placed on frontlayout.');
+    $this->drupalGet('admin/frontlayout/drawer');
+    $this->assertNoText(t('Recent comments'), 'Drawer of disabled blocks excludes enabled blocks.');
+  }
+}

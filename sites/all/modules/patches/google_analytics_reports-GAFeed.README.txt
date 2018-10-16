@@ -1,0 +1,14 @@
+2/27/2018
+kkim@urbaninsight.com
+
+GAFeed uses Google Analytict Reports API version 3. While Google still supports existing apps accessing the API v3, it does not allow new connect, which now should use v4.
+
+In order to support both version 3 and 4 during transition, I've created GAFeedv4.lib.inc to access GA API v4. Original file, GAFeed.lib.inc, has been renamed to GAFeedv3.lib.inc.
+
+GAFeed.lib.inc now will load either version 3 or 4 depending on configuration. If settings.php has this line,
+
+$conf['google_analytics_reports_api_version'] = 'v4';
+
+it will use version 4. Otherwise version 3 will be used.
+
+Included diff file is to guide upgrading to GA API v4 in other projects. I've refactored the code for GAFeedv4.lib.inc to keep same interface. For new projects, GAFeedv4.lib.inc should be written to make use of returned results from GA API version 4.

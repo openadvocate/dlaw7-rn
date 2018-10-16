@@ -1,0 +1,5 @@
+name = Open Analytics w/ Google Analytics
+description = Collect list of popular page via Google Analytics.
+core = 7.x
+package = DLAW
+version = "7.x-0.1"

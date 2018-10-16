@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Latest News feature.
+ */
+
+include_once 'latest_news.features.inc';

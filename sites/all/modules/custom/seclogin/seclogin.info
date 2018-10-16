@@ -1,0 +1,6 @@
+name = DLAW Secure Login
+description = Restrict login on SSL; non-SSL otherwise
+package = DLAW
+core = 7.x
+version = 7.x-0.1
+configure = admin/config/people/seclogin

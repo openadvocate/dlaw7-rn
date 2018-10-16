@@ -1,0 +1,125 @@
+<?php
+
+/**
+ * @file
+ * Enables the organization of content into categories.
+ */
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ * On path /admin/structure/types/manage/CONTENT_TYPE/fields/field_XXX
+ */
+function selectoradd_form_field_ui_field_edit_form_alter(&$form, &$form_state) {
+  // Show if it is taxonomy field and its widget is not autocomplete, which does not need another text field.
+  if ($form['#field']['type'] == 'taxonomy_term_reference' and $form['#instance']['widget']['type'] != 'taxonomy_autocomplete') {
+    $form['instance']['selectoradd'] = array(
+      '#type' => 'checkbox',
+      '#title' => 'Provide textfield to add new terms',
+      '#default_value' => !empty($form['#instance']['selectoradd']) ? $form['#instance']['selectoradd'] : 0,
+      '#weight' => -9,
+    );
+  }
+}
+
+function selectoradd_form_node_form_alter(&$form, &$form_state, $form_id) {
+  if ($soafields = selectoradd_fields_used($form['#bundle'], $form['#entity_type'])) {
+    $form_state['selectoradd_fields'] = $soafields;
+
+    foreach ($soafields as $key => $soafield) {
+      if (isset($form[$key])) {
+        $form[$key .'_selectoradd'] = array(
+          '#type' => 'textfield',
+          '#weight' => isset($form[$key]['#weight']) ? $form[$key]['#weight'] + 0.1 : 5,
+          '#attributes' => array('placeholder' => 'Add new'),
+        );
+
+        if (!in_array('selectoradd_node_form_validate', $form['#validate'])) {
+          $form['#validate'][] = 'selectoradd_node_form_validate';
+        }
+      }
+    }
+  }
+}
+
+function selectoradd_node_form_validate(&$form, &$form_state) {
+  $values = &$form_state['values'];
+  $soafields = $form_state['selectoradd_fields'];
+
+  // Add new terms on the fly.
+  foreach ($soafields as $key => $soafield) {
+    if (!empty($values[$key . '_selectoradd'])) {
+      $vocid = selectoradd_get_vocid($soafield['vocabulary']);
+      $terms = explode(',', $values[$key . '_selectoradd']);
+      $terms = array_map('trim', $terms);
+
+      foreach ($terms as $term) {
+        if (!selectoradd_term_exists($term, $vocid)) {
+          // Let other modules to run validation on the value.
+          if ($error = module_invoke_all('selectoradd_term_validate', $soafield['vocabulary'], $term)) {
+            form_set_error($key . '_selectoradd', implode(' ', $error));
+          }
+          else {
+            if ($tid = selectoradd_term_save($term, $vocid)) {
+              $values[$key][LANGUAGE_NONE][] = array('tid' => $tid);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Return vocabulary ID from its machine name.
+ */
+function selectoradd_get_vocid($vocname) {
+  $voc = taxonomy_vocabulary_machine_name_load($vocname);
+
+  return $voc ? $voc->vid : FALSE;
+}
+
+/**
+ * Check if a term exists in a given vocabulary.
+ */
+function selectoradd_term_exists($name, $vocid) {
+  return db_query("SELECT tid FROM {taxonomy_term_data} WHERE name = :name AND vid = :vid",
+    array(':name' => $name, ':vid' => $vocid))->fetchColumn();
+}
+
+/**
+ * Add a new taxonomy term in vocabulary with vocid.
+ */
+function selectoradd_term_save($name, $vocid) {
+  $term = (object)array(
+    'vid' => $vocid,
+    'name' => $name,
+  );
+
+  taxonomy_term_save($term);
+
+  return !empty($term->tid) ? $term->tid : FALSE;
+}
+
+/**
+ * Return fields that provide Select or Add.
+ */
+function selectoradd_fields_used($bundle, $entity = 'node') {
+  static $fields;
+
+  if (!isset($fields)) {
+    $fields = array();
+    $instances_info = field_info_instances($entity, $bundle);
+
+    foreach ($instances_info as $key => $field) {
+      if (!empty($field['selectoradd'])) {
+        $field_info = field_info_field($key);
+
+        $fields[$key] = array(
+          'vocabulary' => $field_info['settings']['allowed_values'][0]['vocabulary'],
+        );
+      }
+    }
+  }
+
+  return $fields;
+}

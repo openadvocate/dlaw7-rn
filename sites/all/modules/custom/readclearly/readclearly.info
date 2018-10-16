@@ -1,0 +1,7 @@
+name = ReadClearly
+description = ReadClearly section for DLAW settings
+package = DLAW
+core = 7.x
+version = 7.x-0.1
+
+dependencies[] = dlawsettings

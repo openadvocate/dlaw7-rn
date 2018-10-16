@@ -1,0 +1,17 @@
+name = Schema.org feature
+description = Feature around schema.org
+core = 7.x
+package = Features
+version = 7.x-0.3
+project = dlaw4_schema_org
+dependencies[] = ctools
+dependencies[] = rdf
+dependencies[] = schemaorg
+dependencies[] = schemaorg_ui
+dependencies[] = strongarm
+features[ctools][] = strongarm:strongarm:1
+features[features_api][] = api:2
+features[schemaorg][] = node-contact
+features[schemaorg][] = node-page
+features[variable][] = schemaorg_ui_type_contact
+features[variable][] = schemaorg_ui_type_page

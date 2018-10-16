@@ -1,0 +1,20 @@
+Index: sites/all/modules/contrib/rate/rate.bots.inc
+===================================================================
+--- sites/all/modules/contrib/rate/rate.bots.inc	(revision 1194)
++++ sites/all/modules/contrib/rate/rate.bots.inc	(working copy)
+@@ -29,7 +29,14 @@
+  */
+ function rate_bots_is_blocked() {
+   $ip = ip_address();
+-  $agent = $_SERVER['HTTP_USER_AGENT'];
++
++  if (!empty($_SERVER['HTTP_USER_AGENT'])) {
++    $agent = $_SERVER['HTTP_USER_AGENT'];
++  }
++  else {
++    // If a user (bot) does not even have User Agent, don't bother proceeding.
++    return TRUE;
++  }
+   
+   if (rate_bots_is_local($ip)) {
+     // The IP-address is a local IP-address. This is probably because of

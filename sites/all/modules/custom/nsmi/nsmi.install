@@ -1,0 +1,75 @@
+<?php
+/**
+ * @file
+ * NSMI module installer.
+ */
+
+/**
+ *	Implements hook_install.
+ */
+function nsmi_install() {
+  $sql_dump = dirname(__FILE__) . '/nsmi.sql';
+  nsmi_install_sql_restore($sql_dump);
+}
+
+/**
+ *	Implements hook_uninstall.
+ */
+function nsmi_uninstall() {
+  db_query('DROP TABLE nsmi');
+}
+
+/**
+ * Imports a database dump file.
+ * Copied from DLAW1 profile, which copied from demo module.
+ *
+ */
+function nsmi_install_sql_restore($filename) {
+  // Open dump file.
+  if (!file_exists($filename) || !($fp = fopen($filename, 'r'))) {
+    drupal_set_message(t('Unable to open dump file %filename.', array('%filename' => $filename)), 'error');
+    return FALSE;
+  }
+
+  // Load data from dump file.
+  $success = TRUE;
+  $query = '';
+  $new_line = TRUE;
+
+  while (!feof($fp)) {
+    // Better performance on PHP 5.2.x when leaving out buffer size to
+    // fgets().
+    $data = fgets($fp);
+    if ($data === FALSE) {
+      break;
+    }
+    // Skip empty lines (including lines that start with a comment).
+    if ($new_line && ($data == "\n" || !strncmp($data, '--', 2) || !strncmp($data, '#', 1))) {
+      continue;
+    }
+
+    $query .= $data;
+    $len = strlen($data);
+    if ($data[$len - 1] == "\n") {
+      if ($data[$len - 2] == ';') {
+        // Reached the end of a query, now execute it.
+        if (!db_query($query)) {
+          $success = FALSE;
+        }
+        $query = '';
+      }
+      $new_line = TRUE;
+    }
+    else {
+      // Continue adding data from the same line.
+      $new_line = FALSE;
+    }
+  }
+  fclose($fp);
+
+  if (!$success) {
+    drupal_set_message(t('Failed importing NSMI from %filename.', array('%filename' => $filename)), 'error');
+  }
+
+  return $success;
+}

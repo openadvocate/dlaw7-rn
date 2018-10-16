@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Contact Map feature.
+ */
+
+include_once 'contact_map.features.inc';

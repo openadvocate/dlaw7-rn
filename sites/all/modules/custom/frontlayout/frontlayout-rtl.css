@@ -1,0 +1,30 @@
+/**
+ * @file
+ * Right-to-left specific stylesheet for the frontlayout module.
+ */
+
+#frontlayout div.frontlayout-region {
+  float: right;
+}
+#frontlayout #disabled-blocks .block, #frontlayout .block-placeholder {
+  float: right;
+  margin: 3px 0 3px 3px;
+  padding: 6px 8px 6px 4px;
+}
+#frontlayout .canvas-content a.button {
+  margin: 0 10px 0 0;
+}
+#frontlayout .ui-sortable .block h2 {
+  background-position: right -39px;
+  padding: 0 19px;
+}
+#frontlayout.customize-inactive #disabled-blocks .block:hover h2 {
+  background-position: right -39px;
+}
+#frontlayout.customize-inactive .frontlayout-region .ui-sortable .block:hover h2 {
+  background-position: right -36px;
+}
+#frontlayout div#frontlayout_main {
+  margin-left: 1%;
+  margin-right: 0;
+}

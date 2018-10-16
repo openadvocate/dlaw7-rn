@@ -1,0 +1,124 @@
+<?php
+
+/**
+ * @file
+ * Enables the organization of content into categories.
+ */
+
+/**
+ * Implements hook_cron().
+ */
+function oaga_cron() {
+  // Run at 2am. OA sites run cron every hour, so no more checking is necessary
+  // to ensure running once.
+  if (date('G') === '2') {
+    oaga_cron_run();
+  }
+}
+
+function oaga_cron_run($max_count = 5) {
+  $month = variable_get('oaga_month_to_check', '2010-01');
+  $this_month = date('Y-m');
+
+  if ($month < $this_month) {
+    $count = 0;
+    $watchdog = "Pulled GA date for OA from $month";
+    $all_nids = oaga_get_all_nids();
+
+    while ($month < $this_month and $count < $max_count) {
+      $params = array(
+        'metrics'     => array('ga:pageviews'),
+        'dimensions'  => array('ga:pagePath', 'ga:pageTitle'),
+        'segment'     => 'gaid::-1',
+        'sort_metric' => array('-ga:pageviews'),
+        'start_date'  => strtotime("First day of $month"),
+        'end_date'    => strtotime("Last day of $month"),
+        'sort'        => '-ga:pageviews',
+        // 'filters'     => 'ga:pageTitle!=(not set)',
+        // 'max_results' => 4,
+      );
+      $feed = google_analytics_api_report_data($params);
+
+      if (!empty($feed->results->rows)) {
+        $count++;
+        $data = array();
+
+        foreach ($feed->results->rows as $row) {
+          list($path, ) = explode('?', $row['pagePath']);
+
+          // Skip easily recognizable non node pages.
+          if (strpos($path, '/search-') === 0 or
+              strpos($path, '/topics/') === 0 or
+              strpos($path, '/taxonomy/term/') === 0)
+          {
+            continue;
+          }
+
+          $nid = null;
+          // Match node/1234/blah-blah
+          if (preg_match('#^/node/(\d+)(/.*)?#', $path, $match)) {
+            $nid = $match[1];
+          }
+          // Get system path if any
+          else {
+            $syspath = drupal_get_normal_path(substr($path, 1));
+            if (preg_match('#^/node/(\d+)#', $syspath, $match)) {
+              $nid = $match[1];
+            }
+            // Get redirect if any
+            elseif ($redirect = redirect_load_by_source(substr($path, 1))) {
+              if (preg_match('#^/node/(\d+)#', $redirect, $match)) {
+                $nid = $match[1];
+              }
+              else {
+                continue;
+              }
+            }
+            else {
+              continue;
+            }
+          }
+
+          if ($nid and in_array($nid, $all_nids)) {
+            $data["/node/$nid"] += $row['pageviews'];
+          }
+        }
+
+        foreach ($data as $path => $views) {
+          $nid = array_pop(explode('/', $path));
+          $topic = db_query("SELECT name
+            FROM taxonomy_term_data
+            WHERE tid IN (
+              SELECT field_category_tid FROM field_data_field_category WHERE entity_id = :nid
+            )", array(':nid' => $nid))->fetchField();
+
+          db_insert('oaga')
+          ->fields(array(
+            'month' => $month,
+            'path'  => $path,
+            'topic' => $topic,
+            'views' => $views,
+          ))
+          ->execute();
+        }
+      }
+
+      $month = date('Y-m', strtotime("$month + 1 month"));
+    }
+
+    variable_set('oaga_month_to_check', $month);
+
+    watchdog('OpenAnalytics', $watchdog . ' to ' . date('Y-m', strtotime("$month - 1 month")));
+  }
+}
+
+function oaga_get_all_nids() {
+  $result = db_query("SELECT nid FROM node WHERE type = 'page' AND status = 1");
+
+  $nids = array();
+  foreach ($result as $row) {
+    $nids[] = $row->nid;
+  }
+
+  return $nids;
+}

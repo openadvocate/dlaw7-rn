@@ -1,0 +1,14 @@
+name = Filters Image Effect (filtersie)
+description = "Add some filtering image effects to be used in your image style."
+package = Media
+core = 7.x
+
+dependencies[] = image
+files[] = filtersie.test
+
+; Information added by Drupal.org packaging script on 2016-03-20
+version = "7.x-1.2"
+core = "7.x"
+project = "filtersie"
+datestamp = "1458470040"
+

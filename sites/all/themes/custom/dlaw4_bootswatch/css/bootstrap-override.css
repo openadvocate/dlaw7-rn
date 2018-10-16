@@ -1,0 +1,16 @@
+
+.navbar-default .navbar-nav>li>a {
+    color: #727272;
+}
+
+a{
+  color: #007cc0;
+}
+
+.btn.btn-primary{
+  background-color: #007cc0;
+}
+
+#bottom-region a, #footer-region a {
+  color: #0076b7;
+}

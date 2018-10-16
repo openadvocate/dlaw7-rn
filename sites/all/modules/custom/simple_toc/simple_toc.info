@@ -1,0 +1,9 @@
+name = Simple Table of Contents
+description = Adds an table of contents (Customized from contrib module simple_table_of_contents)
+core = 7.x
+package = DLAW
+version = 7.x-1.1-ui1
+
+configure = admin/config/system/simple-toc
+
+stylesheets[all][] = simple_toc.css

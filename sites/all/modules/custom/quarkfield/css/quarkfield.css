@@ -1,0 +1,10 @@
+/* line 4, ../scss/quarkfield.scss */
+#qr_node_tools .pagination {
+  width: 100%;
+  position: relative;
+}
+
+/* line 11, ../scss/quarkfield.scss */
+#qr_node_tools_qr_link_content .inner {
+  padding-top: 23px;
+}

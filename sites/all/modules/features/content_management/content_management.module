@@ -1,0 +1,78 @@
+<?php
+/**
+ * @file
+ * Code for the Content Management feature.
+ */
+
+include_once 'content_management.features.inc';
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ * Alter exposed filter for Content page.
+ */
+function content_management_form_views_exposed_form_alter(&$form, $form_state, $form_id) {
+  if ($form['#id'] == 'views-exposed-form-content-manage-page') {
+    $form['uid']['#description'] = '';
+    $form['uid']['#size'] = '15';
+
+    $form['field_section_target_id_op']['#default_value'] = '0';
+    $form['field_section_target_id_op']['#options'] = array(
+      '0' => '- Any -',
+      'not empty' => 'Yes',
+      'empty' => 'No',
+    );
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function content_management_menu() {
+  $items['admin/dashboard/content/feedback-csv'] = array(
+    'title' => 'Download content feedback in CSV',
+    'page callback' => 'content_management_comments_csv',
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_ACTION,
+  );
+
+  return $items;
+}
+
+/**
+ * Menu callback for 'admin/dashboard/content/comments-csv'
+ */
+function content_management_comments_csv() {
+  header('Content-Type: text/csv');
+  header('Content-Disposition: attachment;filename=feedbacks-' . date('Ymd-His') . '.csv');
+  $out = fopen('php://output', 'w');
+
+  // Header
+  fputcsv($out, array('Date', 'Content', 'Feedback'));
+
+  $query = db_select('comment', 'c');
+  $query->join('field_data_comment_body', 'cb', 'c.cid = cb.entity_id');
+  $query->fields('c', array('nid', 'created'));
+  $query->addField('cb', 'comment_body_value', 'body');
+  $query->condition('c.status', 1)
+    ->orderBy('c.nid');
+
+  $result = $query->execute();
+
+  // Rows
+  $prev_body = '';
+  foreach ($result as $row) {
+    if (strlen(trim($row->body)) < 10) continue;
+
+    $date = date('Y-m-d H:i:s', $row->created);
+    $content = url('node/' . $row->nid);
+    $body = $row->body;
+
+    // Skip duplicate comments.
+    if ($prev_body == $body) continue;
+    $prev_body = $body;
+
+    fputcsv($out, array($date, $content, $body));
+  }
+
+  fclose($out);
+}

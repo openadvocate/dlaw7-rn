@@ -1,0 +1,222 @@
+<?php
+
+/**
+ * @file
+ * ReadClearly section for DLAW settings.
+ */
+
+define('READCLEARLY_URL', 'https://writeclearly.openadvocate.org/oarc/oarc.js');
+define('READCLEARLY_GLOSSARIES_URL', 'https://writeclearly.openadvocate.org/oarc/glossary_list.csv');
+
+/**
+ * Implements hook_menu().
+ */
+function readclearly_menu() {
+  $items['admin/dashboard/settings/glossary'] = array(
+    'title' => 'Glossary',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('readclearly_settings_form'),
+    'access arguments' => array('administer dlaw settings'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 4.5,
+  );
+
+  return $items;
+}
+
+/**
+ * Callback for menu admin/dashboard/settings/readclearly.
+ */
+function readclearly_settings_form() {
+  $form['description'] = array(
+    '#type' => 'item',
+    '#title' => t('ReadClearly Glossary'),
+    '#markup' => '<p>OpenAdvocate ReadCleary is a free Plain Language glossary for legal services websites. Once enabled it will display plain language explanations for complex legal terms on this website. ' . l('Learn more.', 'http://openadvocate.org/readclearly', array('attributes' => array('target' => '_blank'))) . '</p>',
+  );
+
+  $form['enable'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Enable ReadClearly Glossary for all Pages and Contacts'),
+    '#description' => t('Each content can be configured to override the site settings.'),
+    '#default_value' => variable_get('readclearly_enable', 0),
+  );
+
+  if ($glossaries = readclearly_get_glossaries()) {
+    if (!$default_value = variable_get('readclearly_glossary', '')) {
+      $default_value = key($glossaries);
+    }
+
+    $form['glossary'] = array(
+      '#type' => 'radios',
+      '#title' => t('Glossary'),
+      '#default_value' => $default_value,
+      '#options' => $glossaries,
+    );
+  }
+
+  $form['custom_glossary'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Custom glossary'),
+    '#default_value' => variable_get('readclearly_custom_glossary', ''),
+    '#description' => t('Contact us if you need to build your custom glossary. Leave blank if you use one of list above.'),
+    '#maxlength' => 100,
+  );
+
+  $form['theme'] = array(
+    '#type' => 'radios',
+    '#title' => t('Theme'),
+    '#default_value' => variable_get('readclearly_theme', 'default'),
+    '#options' => array(
+      'default' => t('Default'),
+      'neutral' => t('Neutral'),
+    ),
+  );
+
+  $form['location'] = array(
+    '#type' => 'radios',
+    '#title' => t('Location'),
+    '#default_value' => variable_get('readclearly_location', 'bottom-left'),
+    '#options' => array(
+      'top-left' => t('Top left'),
+      'top-right' => t('Top right'),
+      'bottom-left' => t('Bottom left'),
+      'bottom-right' => t('Bottom right'),
+    ),
+  );
+
+  $form['footnotes'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Enable Footnotes mode'),
+    '#default_value' => variable_get('readclearly_footnotes', 0),
+  );
+
+  $form['disabled_pages'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Disable glossary on these pages'),
+    '#description' => t('By default, ReadClearly is enabled on all Pages and Contacts. List system path (node/2 instead of node/2/about-us) each per line.'),
+    '#default_value' => variable_get('readclearly_disabled_pages', ''),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save settings',
+  );
+
+  return $form;
+}
+
+/**
+ *  Submit handler for readclearly_settings_form().
+ */
+function readclearly_settings_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+
+  variable_set('readclearly_enable', $values['enable']);
+  variable_set('readclearly_custom_glossary', trim($values['custom_glossary']));
+  variable_set('readclearly_theme', $values['theme']);
+  variable_set('readclearly_location', $values['location']);
+  variable_set('readclearly_footnotes', $values['footnotes']);
+
+  // Clean up disabled pages into system paths.
+  $disabled_pages = $values['disabled_pages'];
+  $disabled_pages = explode("\n", $disabled_pages);
+  $disabled_pages = array_map('trim', $disabled_pages);
+  $disabled_pages = array_filter($disabled_pages);
+  foreach ($disabled_pages as $key => $path) {
+    $disabled_pages[$key] = drupal_get_normal_path($path);
+  }
+  variable_set('readclearly_disabled_pages', join("\n", $disabled_pages));
+
+  // As glossaries list is fetched over internet, check the value is POSTed.
+  if (!empty($values['glossary'])) {
+    variable_set('readclearly_glossary', $values['glossary']);
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function readclearly_form_page_node_form_alter(&$form, &$form_state, $form_id) {
+  if (readcleary_show_widget($form['#node'])) {
+    // Change field type from text to radios. As options are dynamic, the values
+    // are predetermined. Hence dynamically generate radios.
+    $glossaries = array('' => 'Site Default') + readclearly_get_glossaries();
+
+    $widget = &$form['field_page_glossary']['und'][0]['value'];
+    $widget['#type'] = 'radios';
+    $widget['#options'] = $glossaries;
+    if (empty($widget['#default_value'])) {
+      $widget['#default_value'] = '';
+    }
+  }
+  else {
+    $widget = &$form['field_page_glossary']['und'][0]['value'];
+    $widget['#type'] = 'item';
+    $widget['#markup'] = '<br>Glossary is disabled. ' . l('Configure glossary settings', 'admin/dashboard/settings/glossary', array('query' => drupal_get_destination()));
+  }
+}
+
+/**
+ * Implements hook_preprocess_page().
+ */
+function readclearly_preprocess_page($vars) {
+  if ($node = menu_get_object() and !arg(2)) {
+    if (readcleary_show_widget($node)) {
+      drupal_add_js(READCLEARLY_URL, 'external');
+
+      $theme = variable_get('readclearly_theme', 'default');
+      $location = variable_get('readclearly_location', 'bottom-left');
+      $footnotes = variable_get('readclearly_footnotes', 0) ? 'true' : 'false';
+
+      if (!empty($node->field_page_glossary['und'][0]['value'])) {
+        $glossary = $node->field_page_glossary['und'][0]['value'];
+      }
+      elseif ($custom_glossary = trim(variable_get('readclearly_custom_glossary', ''))) {
+        $glossary = $custom_glossary;
+      }
+      else {
+        $glossary = variable_get('readclearly_glossary', '');
+      }
+
+      $js = "
+      (function ($) {
+        $(function() {
+          OARC.init(true, '{$location}', '{$theme}', {$footnotes}, '{$glossary}');
+        });
+      })(jQuery);";
+
+      drupal_add_js($js, array('type' => 'inline', 'scope' => 'footer'));
+    }
+  }
+}
+
+function readcleary_show_widget($node) {
+  if (in_array($node->type, array('page', 'contact'))) {
+    if (variable_get('readclearly_enable', 0) or !empty($node->field_page_glossary['und'][0]['value'])) {
+      $disabled_pages = variable_get('readclearly_disabled_pages', '');
+      $disabled_pages = explode("\n", $disabled_pages);
+      $disabled_pages = array_map('trim', $disabled_pages);
+      $disabled_pages = array_filter($disabled_pages);
+
+      if (!in_array("node/$node->nid", $disabled_pages)) {
+        return TRUE;
+      }
+    }
+  }
+
+  return FALSE;
+}
+
+function readclearly_get_glossaries() {
+  $csv_file = file(READCLEARLY_GLOSSARIES_URL);
+  $csv = array();
+  foreach (array_map('str_getcsv', $csv_file) as $item) {
+    if (!empty($item[0])) {
+      $label = explode('; ', $item[1], 2);
+      $label = $label[0] . (!empty($label[1]) ? '<div>' . $label[1] . '</div>' : '');
+      $csv[$item[0]] = $label;
+    }
+  }
+
+  return $csv;
+}

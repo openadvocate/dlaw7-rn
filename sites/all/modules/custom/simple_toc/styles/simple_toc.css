@@ -1,0 +1,174 @@
+/* ------------------------------ List_styles ------------------------------------------  */
+/* line 7, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+.pane-simple-toc-simple-toc .pane-title {
+  display: none;
+}
+/* line 10, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+.pane-simple-toc-simple-toc.affix {
+  top: 20px;
+  width: 359px;
+  position: fixed !important;
+}
+/* line 15, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+.pane-simple-toc-simple-toc.affix-bottom {
+  top: auto;
+  bottom: 500px;
+}
+/* line 20, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+.pane-simple-toc-simple-toc h2 {
+  margin-top: 0;
+}
+
+/* line 25, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+.simple-toc-parent {
+  margin-top: 20px;
+}
+
+/* line 33, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc a.back-to-top {
+  padding-left: 20px;
+  margin-top: 20px;
+}
+
+/* line 38, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc {
+  list-style-type: none;
+  background: white;
+}
+/* line 42, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc a, #simple-toc li, #simple-toc ul {
+  margin: 0;
+  padding: 0;
+  color: #666;
+}
+/* line 47, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc a, #simple-toc a:active, #simple-toc a:visited {
+  text-decoration: none;
+  padding-bottom: 5px;
+}
+/* line 50, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc a:hover, #simple-toc a:active:hover, #simple-toc a:visited:hover {
+  color: #005b79 !important;
+  text-decoration: none;
+}
+/* line 55, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc ul {
+  list-style-type: none;
+}
+/* line 61, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li a {
+  padding-left: 20px;
+  border-left: none;
+  color: #666;
+}
+/* line 66, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li ul {
+  display: none;
+}
+/* line 70, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li li a {
+  padding-left: 40px;
+  border-left: none;
+  color: #666;
+}
+/* line 75, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li li ul {
+  display: none;
+}
+/* line 79, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li li li a {
+  padding-left: 60px;
+  border-left: none;
+  color: #666;
+}
+/* line 84, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li li li ul {
+  display: none;
+}
+/* line 91, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li.active a {
+  padding-left: 19px;
+  border-left: 1px solid #005b79;
+  color: #005b79;
+}
+/* line 96, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li.active ul {
+  display: block;
+}
+/* line 100, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li.active li a {
+  padding-left: 40px;
+  border-left: none;
+  color: #666;
+}
+/* line 105, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li.active li ul {
+  display: none;
+}
+/* line 109, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li.active li li a {
+  padding-left: 60px;
+  border-left: none;
+  color: #666;
+}
+/* line 114, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li.active li li ul {
+  display: none;
+}
+/* line 126, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li.active li.active a {
+  padding-left: 39px;
+  border-left: 1px solid #005b79;
+  color: #005b79;
+}
+/* line 131, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li.active li.active ul {
+  display: block;
+}
+/* line 135, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li.active li.active li a {
+  padding-left: 60px;
+  border: none;
+  color: #666;
+}
+/* line 140, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li.active li.active li ul {
+  display: none;
+}
+/* line 144, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li.active li.active li.active a {
+  padding-left: 59px;
+  border-left: 1px solid #005b79;
+  color: #005b79;
+}
+/* line 149, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc li.active li.active li.active ul {
+  display: block;
+}
+/* line 162, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc a {
+  display: block;
+}
+/* line 164, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+#simple-toc a:hover {
+  background: none;
+}
+
+@media (min-width: 992px) and (max-width: 1199px) {
+  /* line 173, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+  .pane-simple-toc-simple-toc.affix {
+    width: 306px;
+  }
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  /* line 181, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+  .pane-simple-toc-simple-toc.affix {
+    width: 234px;
+  }
+}
+@media (max-width: 767px) {
+  /* line 188, C:/UniServer/www/templated4.openadvocate.local.org/sites/all/modules/custom/simple_toc/styles/simple_toc.scss */
+  .pane-simple-toc-simple-toc {
+    display: none;
+  }
+}

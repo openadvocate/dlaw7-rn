@@ -1,0 +1,18 @@
+<?php
+
+/**
+ * @file
+ * DLAW settings in dashboard.
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function dlawsettings_permission() {
+  return array(
+    'administer dlaw settings' => array(
+      'title' => t('Administer DLAW settings'),
+      'description' => t('Perform administration tasks for DLAW settings.'),
+    ),
+  );
+}
