@@ -839,8 +839,34 @@ return FALSE;',
   $display->content['new-a420f917-5792-4302-85ae-72e03f76779b'] = $pane;
   $display->panels['1_6_a'][0] = 'new-a420f917-5792-4302-85ae-72e03f76779b';
   $pane = new stdClass();
-  $pane->pid = 'new-9fda3c32-aa4e-43ea-96d2-5dbe3bbf698e';
+  $pane->pid = 'new-75ef976c-1c14-4a45-9107-94f074a892a3';
   $pane->panel = '1_6_a';
+  $pane->type = 'block';
+  $pane->subtype = 'tcvlan_refnet-tcvlan_refnet_new_referrals';
+  $pane->shown = TRUE;
+  $pane->access = array();
+  $pane->configuration = array(
+    'override_title' => 0,
+    'override_title_text' => '',
+    'override_title_heading' => 'h2',
+  );
+  $pane->cache = array();
+  $pane->style = array(
+    'settings' => NULL,
+  );
+  $pane->css = array(
+    'css_id' => '',
+    'css_class' => 'dashboard__card',
+  );
+  $pane->extras = array();
+  $pane->position = 1;
+  $pane->locks = array();
+  $pane->uuid = '75ef976c-1c14-4a45-9107-94f074a892a3';
+  $display->content['new-75ef976c-1c14-4a45-9107-94f074a892a3'] = $pane;
+  $display->panels['1_6_a'][1] = 'new-75ef976c-1c14-4a45-9107-94f074a892a3';
+  $pane = new stdClass();
+  $pane->pid = 'new-9fda3c32-aa4e-43ea-96d2-5dbe3bbf698e';
+  $pane->panel = '1_6_b';
   $pane->type = 'block';
   $pane->subtype = 'tcvlan_refnet-tcvlan_refnet_new_users';
   $pane->shown = TRUE;
@@ -859,14 +885,14 @@ return FALSE;',
     'css_class' => 'dashboard__card',
   );
   $pane->extras = array();
-  $pane->position = 1;
+  $pane->position = 0;
   $pane->locks = array();
   $pane->uuid = '9fda3c32-aa4e-43ea-96d2-5dbe3bbf698e';
   $display->content['new-9fda3c32-aa4e-43ea-96d2-5dbe3bbf698e'] = $pane;
-  $display->panels['1_6_a'][1] = 'new-9fda3c32-aa4e-43ea-96d2-5dbe3bbf698e';
+  $display->panels['1_6_b'][0] = 'new-9fda3c32-aa4e-43ea-96d2-5dbe3bbf698e';
   $pane = new stdClass();
   $pane->pid = 'new-04ede6c3-ed21-4a4a-9627-c0b797f394d4';
-  $pane->panel = '1_6_a';
+  $pane->panel = '1_6_b';
   $pane->type = 'block';
   $pane->subtype = 'tcvlan_refnet-tcvlan_refnet_active_users';
   $pane->shown = TRUE;
@@ -885,14 +911,14 @@ return FALSE;',
     'css_class' => 'dashboard__card',
   );
   $pane->extras = array();
-  $pane->position = 2;
+  $pane->position = 1;
   $pane->locks = array();
   $pane->uuid = '04ede6c3-ed21-4a4a-9627-c0b797f394d4';
   $display->content['new-04ede6c3-ed21-4a4a-9627-c0b797f394d4'] = $pane;
-  $display->panels['1_6_a'][2] = 'new-04ede6c3-ed21-4a4a-9627-c0b797f394d4';
+  $display->panels['1_6_b'][1] = 'new-04ede6c3-ed21-4a4a-9627-c0b797f394d4';
   $pane = new stdClass();
   $pane->pid = 'new-4c09d4d6-dc65-4f3c-80f6-d029984864fd';
-  $pane->panel = '1_6_a';
+  $pane->panel = '1_6_b';
   $pane->type = 'block';
   $pane->subtype = 'tcvlan_refnet-tcvlan_refnet_active_orgs';
   $pane->shown = TRUE;
@@ -911,86 +937,11 @@ return FALSE;',
     'css_class' => 'dashboard__card',
   );
   $pane->extras = array();
-  $pane->position = 3;
+  $pane->position = 2;
   $pane->locks = array();
   $pane->uuid = '4c09d4d6-dc65-4f3c-80f6-d029984864fd';
   $display->content['new-4c09d4d6-dc65-4f3c-80f6-d029984864fd'] = $pane;
-  $display->panels['1_6_a'][3] = 'new-4c09d4d6-dc65-4f3c-80f6-d029984864fd';
-  $pane = new stdClass();
-  $pane->pid = 'new-8f935c94-de45-4e78-a714-299df33d4895';
-  $pane->panel = '1_6_b';
-  $pane->type = 'block';
-  $pane->subtype = 'tcvlan_refnet-tcvlan_refnet_age_user_login';
-  $pane->shown = TRUE;
-  $pane->access = array();
-  $pane->configuration = array(
-    'override_title' => 0,
-    'override_title_text' => '',
-    'override_title_heading' => 'h2',
-  );
-  $pane->cache = array();
-  $pane->style = array(
-    'settings' => NULL,
-  );
-  $pane->css = array(
-    'css_id' => '',
-    'css_class' => 'dashboard__card',
-  );
-  $pane->extras = array();
-  $pane->position = 0;
-  $pane->locks = array();
-  $pane->uuid = '8f935c94-de45-4e78-a714-299df33d4895';
-  $display->content['new-8f935c94-de45-4e78-a714-299df33d4895'] = $pane;
-  $display->panels['1_6_b'][0] = 'new-8f935c94-de45-4e78-a714-299df33d4895';
-  $pane = new stdClass();
-  $pane->pid = 'new-0d56f764-70ff-4a37-a5c2-059257cb308f';
-  $pane->panel = '1_6_b';
-  $pane->type = 'block';
-  $pane->subtype = 'tcvlan_refnet-tcvlan_refnet_org_updated';
-  $pane->shown = TRUE;
-  $pane->access = array();
-  $pane->configuration = array(
-    'override_title' => 0,
-    'override_title_text' => '',
-    'override_title_heading' => 'h2',
-  );
-  $pane->cache = array();
-  $pane->style = array(
-    'settings' => NULL,
-  );
-  $pane->css = array(
-    'css_id' => '',
-    'css_class' => 'dashboard__card',
-  );
-  $pane->extras = array();
-  $pane->position = 1;
-  $pane->locks = array();
-  $pane->uuid = '0d56f764-70ff-4a37-a5c2-059257cb308f';
-  $display->content['new-0d56f764-70ff-4a37-a5c2-059257cb308f'] = $pane;
-  $display->panels['1_6_b'][1] = 'new-0d56f764-70ff-4a37-a5c2-059257cb308f';
-  $pane = new stdClass();
-  $pane->pid = 'new-062f1e86-43c6-4573-9fd1-5cda821704e9';
-  $pane->panel = '1_6_b';
-  $pane->type = 'block';
-  $pane->subtype = 'tcvlan_refnet-tcvlan_refnet_report_2col_a';
-  $pane->shown = TRUE;
-  $pane->access = array();
-  $pane->configuration = array(
-    'override_title' => 0,
-    'override_title_text' => '',
-    'override_title_heading' => 'h2',
-  );
-  $pane->cache = array();
-  $pane->style = array(
-    'settings' => NULL,
-  );
-  $pane->css = array();
-  $pane->extras = array();
-  $pane->position = 2;
-  $pane->locks = array();
-  $pane->uuid = '062f1e86-43c6-4573-9fd1-5cda821704e9';
-  $display->content['new-062f1e86-43c6-4573-9fd1-5cda821704e9'] = $pane;
-  $display->panels['1_6_b'][2] = 'new-062f1e86-43c6-4573-9fd1-5cda821704e9';
+  $display->panels['1_6_b'][2] = 'new-4c09d4d6-dc65-4f3c-80f6-d029984864fd';
   $pane = new stdClass();
   $pane->pid = 'new-25f8d5d6-7a64-41ca-9bb7-0f80a33697e2';
   $pane->panel = 'top_row';
@@ -1100,19 +1051,68 @@ return FALSE;',
   $display->content = array();
   $display->panels = array();
   $pane = new stdClass();
-  $pane->pid = 'new-5e1aa1e1-cfea-4730-bafb-0399e4e5db77';
+  $pane->pid = 'new-515ca7ce-d947-4142-8dfb-a74ff433fa9d';
   $pane->panel = 'left';
-  $pane->type = 'custom';
-  $pane->subtype = 'custom';
+  $pane->type = 'block';
+  $pane->subtype = 'tcvlan_refnet-tcvlan_refnet_age_user_login';
   $pane->shown = TRUE;
   $pane->access = array();
   $pane->configuration = array(
-    'admin_title' => 'Report dummy content',
-    'title' => '',
-    'body' => '<p>Reports content coming...</p>
-',
-    'format' => 'filtered_html',
-    'substitute' => TRUE,
+    'override_title' => 0,
+    'override_title_text' => '',
+    'override_title_heading' => 'h2',
+  );
+  $pane->cache = array();
+  $pane->style = array(
+    'settings' => NULL,
+  );
+  $pane->css = array(
+    'css_id' => '',
+    'css_class' => 'dashboard__card',
+  );
+  $pane->extras = array();
+  $pane->position = 0;
+  $pane->locks = array();
+  $pane->uuid = '515ca7ce-d947-4142-8dfb-a74ff433fa9d';
+  $display->content['new-515ca7ce-d947-4142-8dfb-a74ff433fa9d'] = $pane;
+  $display->panels['left'][0] = 'new-515ca7ce-d947-4142-8dfb-a74ff433fa9d';
+  $pane = new stdClass();
+  $pane->pid = 'new-75952b62-a54f-4a09-b899-c404065b9eea';
+  $pane->panel = 'left';
+  $pane->type = 'block';
+  $pane->subtype = 'tcvlan_refnet-tcvlan_refnet_org_updated';
+  $pane->shown = TRUE;
+  $pane->access = array();
+  $pane->configuration = array(
+    'override_title' => 0,
+    'override_title_text' => '',
+    'override_title_heading' => 'h2',
+  );
+  $pane->cache = array();
+  $pane->style = array(
+    'settings' => NULL,
+  );
+  $pane->css = array(
+    'css_id' => '',
+    'css_class' => 'dashboard__card',
+  );
+  $pane->extras = array();
+  $pane->position = 1;
+  $pane->locks = array();
+  $pane->uuid = '75952b62-a54f-4a09-b899-c404065b9eea';
+  $display->content['new-75952b62-a54f-4a09-b899-c404065b9eea'] = $pane;
+  $display->panels['left'][1] = 'new-75952b62-a54f-4a09-b899-c404065b9eea';
+  $pane = new stdClass();
+  $pane->pid = 'new-fd39f9e6-d8b5-471b-8ed9-d4aff2bfac17';
+  $pane->panel = 'left';
+  $pane->type = 'block';
+  $pane->subtype = 'tcvlan_refnet-tcvlan_refnet_report_2col_a';
+  $pane->shown = TRUE;
+  $pane->access = array();
+  $pane->configuration = array(
+    'override_title' => 0,
+    'override_title_text' => '',
+    'override_title_heading' => 'h2',
   );
   $pane->cache = array();
   $pane->style = array(
@@ -1120,13 +1120,13 @@ return FALSE;',
   );
   $pane->css = array();
   $pane->extras = array();
-  $pane->position = 0;
+  $pane->position = 2;
   $pane->locks = array();
-  $pane->uuid = '5e1aa1e1-cfea-4730-bafb-0399e4e5db77';
-  $display->content['new-5e1aa1e1-cfea-4730-bafb-0399e4e5db77'] = $pane;
-  $display->panels['left'][0] = 'new-5e1aa1e1-cfea-4730-bafb-0399e4e5db77';
+  $pane->uuid = 'fd39f9e6-d8b5-471b-8ed9-d4aff2bfac17';
+  $display->content['new-fd39f9e6-d8b5-471b-8ed9-d4aff2bfac17'] = $pane;
+  $display->panels['left'][2] = 'new-fd39f9e6-d8b5-471b-8ed9-d4aff2bfac17';
   $display->hide_title = PANELS_TITLE_FIXED;
-  $display->title_pane = 'new-5e1aa1e1-cfea-4730-bafb-0399e4e5db77';
+  $display->title_pane = '0';
   $handler->conf['display'] = $display;
   $page->default_handlers[$handler->name] = $handler;
   $pages['referral_network_report'] = $page;

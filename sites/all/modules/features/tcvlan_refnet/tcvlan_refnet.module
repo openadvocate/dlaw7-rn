@@ -16,6 +16,26 @@ define('TCVLAN_REF_STATUS_CERTIFIED', 4);
 define('TCVLAN_REF_STATUS_REFERRED',  5);
 define('TCVLAN_REF_STATUS_CLOSED',    6);
 
+/**
+ * Implements hook_theme().
+ */
+function tcvlan_refnet_theme($existing, $type, $theme, $path) {
+  $themes = array(
+    'chart_age_graph' => array(
+      'variables' => array('vars' => array()),
+      'path' => $path . '/templates',
+      'template' => 'chart-age-graph',
+    ),
+    'chart_pie_graph' => array(
+      'variables' => array('vars' => array()),
+      'path' => $path . '/templates',
+      'template' => 'chart-pie-graph',
+    ),
+  );
+
+  return $themes;
+}
+
 function tcvlan_refnet_get_org_contact($org) {
   if (!empty($org->field_partner_contact)) {
     $contact_uid = $org->field_partner_contact[LANGUAGE_NONE][0]['target_id'];

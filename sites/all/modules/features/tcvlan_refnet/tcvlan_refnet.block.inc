@@ -24,6 +24,10 @@ function tcvlan_refnet_block_info() {
     'info' => t('RefNet: Join Requests'),
   );
 
+  $blocks['tcvlan_refnet_new_referrals'] = array(
+    'info' => t('RefNet: Recently Added Referrals'),
+  );
+
   $blocks['tcvlan_refnet_new_users'] = array(
     'info' => t('RefNet: Recently Added Users'),
   );
@@ -233,6 +237,36 @@ function tcvlan_refnet_join_requests_block() {
   return array('subject' => $title, 'content' => join("\n", $content));
 }
 
+function tcvlan_refnet_new_referrals_block() {
+  $query = db_select('node', 'n');
+  $query->fields('n', array('nid', 'title', 'created'));
+
+  $query->join('users', 'u', 'n.uid = u.uid');
+  $query->fields('u', array('uid', 'name'));
+
+  $query->condition('n.type', 'referral');
+
+  $query->orderBy('n.created', 'DESC');
+  $query->range(0, 10);
+
+  $result = $query->execute();
+
+  $rows = array();
+  foreach ($result as $row) {
+    $rows[] = array(
+      l($row->name, "user/{$row->uid}"),
+      l($row->title, "node/{$row->nid}"),
+      format_interval(REQUEST_TIME - $row->created, 1) . ' ago',
+    );
+  }
+
+  $content = theme('table', array('header' => [], 'rows' => $rows, 'empty' => 'No entries.'));
+
+  $title = '<i class="fa fa-arrow-right"></i> Recently Added Referrals';
+
+  return array('subject' => $title, 'content' => $content);
+}
+
 function tcvlan_refnet_new_users_block() {
   $query = db_select('users', 'u');
   $query->fields('u', array('uid', 'name', 'created'));
@@ -324,20 +358,110 @@ function tcvlan_refnet_active_orgs_block() {
 }
 
 function tcvlan_refnet_age_user_login_block() {
+  $data = [];
+  $week = 1;
+  for ($i = 0; $i > -52; $i--) {
+    $from = strtotime("last sunday $i week");
+    $to = strtotime("next sunday $i week") - 1;
+
+    // Access count.
+    $count = db_select('users')
+      ->condition('uid', 1, '>')
+      ->condition('access', [$from, $to], 'BETWEEN')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+
+    $data[$week++] = $count;
+  }
+
+  $data = array_reverse($data, TRUE);
+
   $title = '<i class="fa fa-bar-chart-o"></i> Age of user last login';
-  $content = '<img src="https://via.placeholder.com/600x300/eee?text=Graph+to+come">';
+
+  $content = array(
+    '#theme' => 'chart_age_graph',
+    '#vars' => ['data' => $data],
+  );
 
   return array('subject' => $title, 'content' => $content);
 }
 
 function tcvlan_refnet_org_updated_block() {
+  $data = [];
+  $week = 1;
+  for ($i = 0; $i > -52; $i--) {
+    $from = strtotime("last sunday $i week");
+    $to = strtotime("next sunday $i week") - 1;
+
+    // Org update count.
+    $count = db_select('node')
+      ->condition('type', 'partner')
+      ->condition('changed', [$from, $to], 'BETWEEN')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+
+    $data[$week++] = $count;
+  }
+
+  $data = array_reverse($data, TRUE);
+
   $title = '<i class="fa fa-bar-chart-o"></i> Org updated';
-  $content = '<img src="https://via.placeholder.com/600x300/eee?text=Graph+to+come">';
+
+  $content = array(
+    '#theme' => 'chart_age_graph',
+    '#vars' => ['data' => $data],
+  );
 
   return array('subject' => $title, 'content' => $content);
 }
 
 function tcvlan_refnet_report_2col_a_block() {
+  // Chart for Accepting Referrals
+  $count_yes = db_select('field_data_field_partner_accepting_ref')
+    ->condition('field_partner_accepting_ref_value', 1)
+    ->countQuery()
+    ->execute()
+    ->fetchField();
+
+  $count_no = db_select('field_data_field_partner_accepting_ref')
+    ->condition('field_partner_accepting_ref_value', 0)
+    ->countQuery()
+    ->execute()
+    ->fetchField();
+
+  $data = [ $count_yes, $count_no ];
+
+  $render_array = [
+    '#theme' => 'chart_pie_graph',
+    '#vars' => ['data' => $data],
+  ];
+
+  $chart1 = drupal_render($render_array);
+
+  // Chart for Network Partners
+  $count_yes = db_select('field_data_field_partner_network')
+    ->condition('field_partner_network_value', 1)
+    ->countQuery()
+    ->execute()
+    ->fetchField();
+
+  $count_no = db_select('field_data_field_partner_network')
+    ->condition('field_partner_network_value', 0)
+    ->countQuery()
+    ->execute()
+    ->fetchField();
+
+  $data = [ $count_yes, $count_no ];
+
+  $render_array = [
+    '#theme' => 'chart_pie_graph',
+    '#vars' => ['data' => $data],
+  ];
+
+  $chart2 = drupal_render($render_array);
+
   $content =<<<OUT
     <div class="row">
       <div class="col-sm-6">
@@ -345,7 +469,7 @@ function tcvlan_refnet_report_2col_a_block() {
           <h2 class="panel-title">
             <i class="fa fa-bar-chart-o"></i> Accepting Referrals
           </h2>
-          <img src="https://via.placeholder.com/300x300/eee?text=Graph+to+come">
+          {$chart1}
         </div>
       </div>
       <div class="col-sm-6">
@@ -353,7 +477,7 @@ function tcvlan_refnet_report_2col_a_block() {
           <h2 class="panel-title">
             <i class="fa fa-bar-chart-o"></i> Network Partners
           </h2>
-          <img src="https://via.placeholder.com/300x300/eee?text=Graph+to+come">
+          {$chart2}
         </div>
       </div>
     </div>
